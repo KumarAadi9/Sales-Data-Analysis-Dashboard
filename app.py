@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import io
+import json
+import os
+import hashlib
 
 # ==========================================
 # 1. THEME CONFIGURATIONS & STYLING
@@ -648,6 +651,78 @@ def render_chat_data(df):
                 st.error(f"Error generating response: {e}. (Make sure your API key is valid).")
 
 # ==========================================
+# ==========================================
+# 9.5. AUTHENTICATION SYSTEM
+# ==========================================
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def load_users():
+    if os.path.exists('users.json'):
+        with open('users.json', 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_user(email_or_phone, password):
+    users = load_users()
+    if email_or_phone in users:
+        return False # User already exists
+    users[email_or_phone] = hash_password(password)
+    with open('users.json', 'w') as f:
+        json.dump(users, f)
+    return True
+
+def authenticate(email_or_phone, password):
+    users = load_users()
+    if email_or_phone in users and users[email_or_phone] == hash_password(password):
+        return True
+    return False
+
+def render_login():
+    st.markdown("<h1 style='text-align: center; margin-top: 5rem;'>🔐 AI Sales Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #94a3b8;'>Please log in or sign up to access the enterprise portal.</p>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        tab1, tab2 = st.tabs(["🔑 Login", "📝 Sign Up"])
+        
+        with tab1:
+            with st.form("login_form"):
+                st.markdown("### Log In")
+                email_or_phone = st.text_input("Email or Mobile Number")
+                password = st.text_input("Password", type="password")
+                submit = st.form_submit_button("Login", use_container_width=True)
+                
+                if submit:
+                    if authenticate(email_or_phone, password):
+                        st.session_state.logged_in = True
+                        st.session_state.current_user = email_or_phone
+                        st.rerun()
+                    else:
+                        st.error("Invalid email/phone or password.")
+                        
+        with tab2:
+            with st.form("signup_form"):
+                st.markdown("### Create an Account")
+                new_email_or_phone = st.text_input("Email or Mobile Number")
+                new_password = st.text_input("Password", type="password")
+                confirm_password = st.text_input("Confirm Password", type="password")
+                signup_submit = st.form_submit_button("Sign Up", use_container_width=True)
+                
+                if signup_submit:
+                    if new_password != confirm_password:
+                        st.error("Passwords do not match.")
+                    elif len(new_password) < 6:
+                        st.error("Password must be at least 6 characters.")
+                    elif not new_email_or_phone:
+                        st.error("Please enter a valid email or mobile number.")
+                    else:
+                        if save_user(new_email_or_phone, new_password):
+                            st.success("Account created successfully! Please switch to the Login tab.")
+                        else:
+                            st.error("An account with this email/phone already exists.")
+
+# ==========================================
 # 10. MAIN APPLICATION ROUTER
 # ==========================================
 def main():
@@ -661,7 +736,26 @@ def main():
     if 'theme' not in st.session_state:
         st.session_state.theme = "Midnight Indigo"
         
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
+        st.session_state.current_user = None
+        
     apply_theme()
+    
+    # ------------------------------------------
+    # Authentication Check
+    # ------------------------------------------
+    if not st.session_state.logged_in:
+        render_login()
+        return
+        
+    # Sidebar Profile & Logout
+    st.sidebar.markdown(f"👤 Logged in as: **{st.session_state.current_user}**")
+    if st.sidebar.button("🚪 Logout", use_container_width=True):
+        st.session_state.logged_in = False
+        st.session_state.current_user = None
+        st.rerun()
+    st.sidebar.markdown("---")
     
     st.sidebar.title("📂 Data Upload")
     uploaded_file = st.sidebar.file_uploader("Upload CSV or Excel", type=["csv", "xlsx", "xls"])
