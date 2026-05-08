@@ -6,25 +6,39 @@ import io
 import json
 import os
 import hashlib
+import random
+import jinja2
 
 # ==========================================
 # 1. THEME CONFIGURATIONS & STYLING
 # ==========================================
+# ==========================================
+# 1. THEME CONFIGURATIONS & STYLING
+# ==========================================
 THEMES = {
-    "Midnight Indigo": {
-        "bg": "#0F111A", "card_bg": "#161824", "border": "rgba(255, 255, 255, 0.05)",
-        "primary": "#6366F1", "secondary": "#A855F7", "text_primary": "#F8FAFC", "text_secondary": "#94A3B8",
-        "chart_colors": ['#6366F1', '#A855F7', '#EC4899', '#14B8A6', '#F59E0B']
+    "Executive Light": {
+        "bg": "#F8FAFC", "card_bg": "#FFFFFF", "sidebar_bg": "#F1F5F9", "border": "#E2E8F0",
+        "primary": "#3B82F6", "secondary": "#6366F1", "text_primary": "#0F172A", "text_secondary": "#475569",
+        "chart_colors": ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA'], # Soothing pastels
+        "plotly_template": "plotly_white"
     },
-    "Cybernetic Teal": {
-        "bg": "#0B0E14", "card_bg": "#11161F", "border": "#1E293B",
-        "primary": "#10B981", "secondary": "#06B6D4", "text_primary": "#FFFFFF", "text_secondary": "#64748B",
-        "chart_colors": ['#10B981', '#06B6D4', '#3B82F6', '#8B5CF6', '#F43F5E']
+    "Modern Dark": {
+        "bg": "#0F111A", "card_bg": "#161824", "sidebar_bg": "#0B0E14", "border": "#1E293B",
+        "primary": "#3B82F6", "secondary": "#8B5CF6", "text_primary": "#FAFAFA", "text_secondary": "#94A3B8",
+        "chart_colors": ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+        "plotly_template": "plotly_dark"
     },
-    "Obsidian Slate": {
-        "bg": "#121212", "card_bg": "#1E1E1E", "border": "#333333",
-        "primary": "#FFFFFF", "secondary": "#3B82F6", "text_primary": "#E0E0E0", "text_secondary": "#888888",
-        "chart_colors": ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA']
+    "Nordic Clean": {
+        "bg": "#ECEFF4", "card_bg": "#FFFFFF", "sidebar_bg": "#E5E9F0", "border": "#D8DEE9",
+        "primary": "#5E81AC", "secondary": "#81A1C1", "text_primary": "#2E3440", "text_secondary": "#4C566A",
+        "chart_colors": ['#81A1C1', '#8FBCBB', '#B48EAD', '#D08770', '#EBCB8B'], # Matte Nord colors
+        "plotly_template": "plotly_white"
+    },
+    "Midnight Blue": {
+        "bg": "#0F172A", "card_bg": "#1E293B", "sidebar_bg": "#0B1120", "border": "#334155",
+        "primary": "#38BDF8", "secondary": "#818CF8", "text_primary": "#F8FAFC", "text_secondary": "#94A3B8",
+        "chart_colors": ['#38BDF8', '#34D399', '#FB7185', '#FBBF24', '#C084FC'],
+        "plotly_template": "plotly_dark"
     }
 }
 
@@ -44,6 +58,49 @@ def apply_theme():
         background-color: {t['bg']};
     }}
     
+    /* Force Sidebar Background & Text */
+    [data-testid="stSidebar"] > div:first-child {{
+        background-color: {t['sidebar_bg']} !important;
+        border-right: 1px solid {t['border']} !important;
+    }}
+    
+    /* Fix Input Widgets (Dropdowns, Text Boxes) */
+    div[data-baseweb="select"] > div, input {{
+        background-color: {t['card_bg']} !important;
+        color: {t['text_primary']} !important;
+        border: 1px solid {t['border']} !important;
+    }}
+    div[data-baseweb="select"] > div, input {{
+        background-color: {t['card_bg']} !important;
+        color: {t['text_primary']} !important;
+        border: 1px solid {t['border']} !important;
+    }}
+    
+    /* Fix Floating Dropdown Menus (Popovers) */
+    /* Fix Floating Dropdown Menus (Stubborn Popovers) */
+    div[data-baseweb="popover"] > div, 
+    div[data-baseweb="popover"] ul, 
+    ul[role="listbox"] {{
+        background-color: {t['card_bg']} !important;
+    }}
+    li[role="option"] {{
+        background-color: transparent !important;
+        color: {t['text_primary']} !important;
+    }}
+    li[role="option"]:hover, li[aria-selected="true"] {{
+        background-color: {t['sidebar_bg']} !important;
+        color: {t['primary']} !important;
+    }}
+    
+    /* Force global text colors so Light Mode isn't invisible */
+    h1, h2, h3, h4, h5, h6, .markdown-text-container, span, label {{
+        color: {t['text_primary']} !important;
+    }}
+    
+    p, li, .st-emotion-cache-1wivap2 {{
+        color: {t['text_secondary']} !important;
+    }}
+    
     [data-testid="stHeader"] {{background-color: transparent;}}
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
@@ -54,19 +111,6 @@ def apply_theme():
         padding-bottom: 3rem !important;
         max-width: 1400px !important;
     }}
-    
-    h1, h2, h3, h4, h5, h6, .markdown-text-container {{
-        color: {t['text_primary']} !important;
-    }}
-    
-    h1, h2, h3 {{
-        font-weight: 600 !important;
-        letter-spacing: -0.5px;
-    }}
-
-    p, li {{
-        color: {t['text_secondary']};
-    }}
 
     /* Beautiful Gradient KPI Cards */
     div[data-testid="metric-container"] {{
@@ -74,21 +118,14 @@ def apply_theme():
         border-radius: 16px;
         padding: 1.8rem;
         border: 1px solid {t['border']};
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         transition: all 0.3s ease-in-out;
     }}
 
     div[data-testid="metric-container"]:hover {{
         transform: translateY(-4px);
-        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
         border-color: {t['primary']};
-    }}
-    
-    div[data-testid="metric-container"] label {{
-        color: {t['text_secondary']} !important;
-        font-weight: 500 !important;
-        font-size: 1.05rem !important;
-        margin-bottom: 0.5rem;
     }}
     
     div[data-testid="metric-container"] div[data-testid="stMetricValue"] {{
@@ -104,27 +141,11 @@ def apply_theme():
     [data-testid="stPlotlyChart"] {{
         background-color: {t['card_bg']};
         border-radius: 16px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         border: 1px solid {t['border']};
         overflow: hidden;
     }}
 
-    .streamlit-expanderHeader {{
-        background-color: {t['card_bg']};
-        border-radius: 8px;
-    }}
-    
-    hr {{
-        margin: 2rem 0;
-        border-color: {t['border']};
-    }}
-    
-    /* Sidebar */
-    [data-testid="stSidebar"] {{
-        background-color: {t['bg']};
-        border-right: 1px solid {t['border']};
-    }}
-    
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 24px;
@@ -133,7 +154,7 @@ def apply_theme():
     .stTabs [data-baseweb="tab"] {{
         height: 3rem;
         background-color: transparent;
-        color: {t['text_secondary']};
+        color: {t['text_secondary']} !important;
         font-weight: 500;
         font-size: 1.1rem;
     }}
@@ -143,6 +164,26 @@ def apply_theme():
     }}
     .stTabs [data-baseweb="tab-highlight"] {{
         background-color: {t['primary']};
+    }}
+    /* Fix All Buttons (Standard, Download, Submit) */
+    div.stButton > button, div.stDownloadButton > button, div.stFormSubmitButton > button {{
+        background-color: {t['card_bg']} !important;
+        color: {t['text_primary']} !important;
+        border: 1px solid {t['border']} !important;
+        transition: all 0.2s ease-in-out;
+    }}
+    div.stButton > button:hover, div.stDownloadButton > button:hover, div.stFormSubmitButton > button:hover {{
+        border-color: {t['primary']} !important;
+        color: {t['primary']} !important;
+    }}
+
+    /* Fix File Uploader Box */
+    [data-testid="stFileUploadDropzone"] {{
+        background-color: {t['card_bg']} !important;
+        border: 1px dashed {t['border']} !important;
+    }}
+    [data-testid="stFileUploadDropzone"] div {{
+        color: {t['text_primary']} !important;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -222,6 +263,7 @@ def render_sidebar(df):
 def render_dashboard(df):
     """Renders the main executive dashboard with metrics and visual charts."""
     st.header("Executive Sales Dashboard")
+    t = THEMES[st.session_state.theme]
     
     if df.empty:
         st.warning("No data available for the selected filters.")
@@ -253,14 +295,14 @@ def render_dashboard(df):
             fig_trend = px.area(
                 sales_trend, x="order_date", y="sales",
                 color_discrete_sequence=[THEMES[st.session_state.theme]['primary']],
-                template="plotly_dark"
+                template=THEMES[st.session_state.theme]['plotly_template']
             )
             fig_trend.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=20, r=20, t=40, b=20),
                 xaxis_title="", yaxis_title="Sales ($)",
-                xaxis=dict(showgrid=False),
-                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)")
+                xaxis=dict(showgrid=False, color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
+                yaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary']))
             )
             st.plotly_chart(fig_trend, use_container_width=True)
             
@@ -271,13 +313,13 @@ def render_dashboard(df):
             fig_cat = px.pie(
                 sales_cat, names="category", values="sales", hole=0.5,
                 color_discrete_sequence=THEMES[st.session_state.theme]['chart_colors'],
-                template="plotly_dark"
+                template=THEMES[st.session_state.theme]['plotly_template']
             )
             fig_cat.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=20, r=20, t=40, b=20),
                 showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color=t['text_secondary']))
             )
             fig_cat.update_traces(textposition='inside', textinfo='percent', hoverinfo='label+percent+value')
             st.plotly_chart(fig_cat, use_container_width=True)
@@ -293,14 +335,14 @@ def render_dashboard(df):
             fig_region = px.bar(
                 sales_region, y="region", x="sales", orientation='h',
                 color_discrete_sequence=[THEMES[st.session_state.theme]['primary']],
-                template="plotly_dark"
+                template=THEMES[st.session_state.theme]['plotly_template']
             )
             fig_region.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=20, r=20, t=40, b=20), coloraxis_showscale=False,
                 xaxis_title="Sales ($)", yaxis_title="",
-                xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
-                yaxis=dict(showgrid=False)
+                xaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
+                yaxis=dict(showgrid=False, color=t['text_secondary'], tickfont=dict(color=t['text_secondary']))
             )
             st.plotly_chart(fig_region, use_container_width=True)
             
@@ -313,14 +355,14 @@ def render_dashboard(df):
             fig_top = px.bar(
                 top_products, y=prod_col, x="sales", orientation='h',
                 color_discrete_sequence=[THEMES[st.session_state.theme]['secondary']],
-                template="plotly_dark"
+                template=THEMES[st.session_state.theme]['plotly_template']
             )
             fig_top.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=20, r=20, t=40, b=20), coloraxis_showscale=False,
                 xaxis_title="Sales ($)", yaxis_title="",
-                xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
-                yaxis=dict(showgrid=False)
+                xaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
+                yaxis=dict(showgrid=False, color=t['text_secondary'], tickfont=dict(color=t['text_secondary']))
             )
             # Truncate long product names for better display
             fig_top.update_yaxes(ticktext=[f"{str(name)[:30]}..." if len(str(name)) > 30 else name for name in top_products[prod_col]], 
@@ -376,15 +418,22 @@ def render_data_view(df):
         )
         
     st.markdown("<br>", unsafe_allow_html=True)
-    st.dataframe(df, use_container_width=True)
+    t = THEMES[st.session_state.theme]
+    # Force the dataframe cells to match the current theme
+    styled_df = df.style.set_properties(**{
+        'background-color': t['card_bg'],
+        'color': t['text_primary'],
+        'border-color': t['border']
+    })
+    st.dataframe(styled_df, use_container_width=True)
 
 # ==========================================
 # 6. AI & BUSINESS INSIGHTS
 # ==========================================
 def render_insights(df):
-    """Generates automated business insights based on the filtered data."""
-    st.header("🤖 AI-Powered Business Insights")
-    st.markdown("Discover actionable, data-driven recommendations tailored to your current performance.")
+    """Generates dynamic business insights using the Gemini LLM API."""
+    st.header("🧠 Generative AI Business Insights")
+    st.markdown("Actionable, data-driven recommendations analyzed in real-time by Google Gemini.")
     
     if df.empty:
         st.warning("Not enough data to generate insights.")
@@ -392,77 +441,69 @@ def render_insights(df):
 
     st.markdown("---")
     
-    col1, col2 = st.columns(2, gap="large")
-    
-    with col1:
-        st.subheader("📈 Performance & Trends")
-        
-        # 1. Top-Performing Regions
-        if "region" in df.columns and "sales" in df.columns:
-            region_sales = df.groupby("region")["sales"].sum().sort_values(ascending=False)
-            if not region_sales.empty and region_sales.sum() > 0:
-                top_region = region_sales.index[0]
-                top_pct = (region_sales.iloc[0] / region_sales.sum()) * 100
-                st.info(f"**Regional Outperformance**: **{top_region}** leads revenue generation, contributing **{top_pct:.1f}%** of total sales. Recommend allocating expansion capital to this high-yield market.")
+    # 1. API Key Check (Reuses the key from your Chat Data tab)
+    import os
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        try:
+            api_key = st.secrets.get("GEMINI_API_KEY", "")
+        except Exception:
+            pass
+            
+    if 'gemini_api_key' in st.session_state and st.session_state.gemini_api_key:
+        api_key = st.session_state.gemini_api_key
 
-        # 2. Declining Sales Trends
-        if "order_date" in df.columns and "sales" in df.columns:
-            trend_df = df.dropna(subset=['order_date']).copy()
-            if not trend_df.empty:
-                sales_by_month = trend_df.groupby(trend_df['order_date'].dt.to_period('M'))['sales'].sum()
-                if len(sales_by_month) >= 3:
-                    m1, m2, m3 = sales_by_month.iloc[-3], sales_by_month.iloc[-2], sales_by_month.iloc[-1]
-                    if m3 < m2 and m2 < m1:
-                        decline_pct = ((m1 - m3) / m1) * 100 if m1 > 0 else 0
-                        st.warning(f"**Sales Contraction**: Revenue declined for two consecutive months (down **{decline_pct:.1f}%** from peak). Immediate review of pipeline velocity and demand generation required.")
-                    elif m3 < m2:
-                        decline_pct = ((m2 - m3) / m2) * 100 if m2 > 0 else 0
-                        st.warning(f"**Short-Term Decline**: Recent month sales contracted by **{decline_pct:.1f}%**. Investigate potential seasonality or recent marketing inefficiencies.")
-                    else:
-                        growth_pct = ((m3 - m2) / m2) * 100 if m2 > 0 else 0
-                        st.success(f"**Growth Trajectory**: Sales grew by **{growth_pct:.1f}%** in the most recent period. Current go-to-market strategy is effective.")
+    if not api_key:
+        st.warning("⚠️ **Gemini API Key Required**")
+        st.info("To unlock real-time generative insights, please go to the '💬 Chat AI' tab and enter your API Key first.")
+        return
 
-        # 3. Seasonal Patterns
-        if "order_date" in df.columns and "sales" in df.columns:
-            trend_df = df.dropna(subset=['order_date']).copy()
-            if not trend_df.empty:
-                trend_df['quarter'] = trend_df['order_date'].dt.quarter
-                q_sales = trend_df.groupby('quarter')['sales'].mean()
-                if len(q_sales) > 1:
-                    best_q = q_sales.idxmax()
-                    st.info(f"**Seasonality Detection**: Average revenue peaks in **Q{best_q}**. Align inventory procurement and marketing spend to capitalize on this recurring demand surge.")
-
-    with col2:
-        st.subheader("💡 Profitability & Behavior")
-        
-        # 4. Profitable Categories
-        if "category" in df.columns and "profit" in df.columns and "sales" in df.columns:
-            cat_profit = df.groupby("category")[["sales", "profit"]].sum()
-            cat_profit = cat_profit[cat_profit["sales"] > 0]
-            if not cat_profit.empty:
-                cat_profit["margin"] = (cat_profit["profit"] / cat_profit["sales"]) * 100
-                most_profitable = cat_profit.sort_values(by="margin", ascending=False).index[0]
-                best_margin = cat_profit["margin"].max()
-                st.success(f"**Category Profitability**: **{most_profitable}** is the most lucrative segment with a **{best_margin:.1f}%** profit margin. Prioritize this category in upcoming promotional cycles.")
+    # 2. The AI Generation Trigger
+    if st.button("✨ Generate Custom AI Insights", use_container_width=True):
+        with st.spinner("Analyzing dataset patterns... this takes a few seconds."):
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=api_key)
                 
-        # 5. Loss-Making Products
-        prod_col = "product_name" if "product_name" in df.columns else "product" if "product" in df.columns else None
-        if prod_col and "profit" in df.columns:
-            prod_profit = df.groupby(prod_col)["profit"].sum().sort_values(ascending=True)
-            loss_prods = prod_profit[prod_profit < 0]
-            if not loss_prods.empty:
-                worst_prod = loss_prods.index[0]
-                worst_prod_name = worst_prod if len(str(worst_prod)) < 35 else f"{str(worst_prod)[:32]}..."
-                total_loss = abs(loss_prods.sum())
-                st.error(f"**Profit Drain**: **{len(loss_prods)}** products operate at a net loss, costing **${total_loss:,.0f}**. The worst offender is '{worst_prod_name}'. Consider immediate discontinuation or price restructuring.")
-
-        # 6. Customer Purchasing Behavior
-        if "sales" in df.columns and "order_id" in df.columns:
-            unique_orders = df["order_id"].nunique()
-            if unique_orders > 0:
-                aov = df["sales"].sum() / unique_orders
-                items_per_order = len(df) / unique_orders
-                st.info(f"**Purchasing Behavior**: Average Order Value (AOV) is **${aov:.2f}** with **{items_per_order:.1f}** items per transaction. Introduce volume-based discounts to increase basket size.")
+                # Using Gemini 1.5 Flash for fast, cost-effective text generation
+                model = genai.GenerativeModel('gemini-2.5-flash') 
+                
+                # 3. Create the Data Fingerprint
+                # include='all' ensures we get stats on categorical data too (like top region, top product)
+                summary_stats = df.describe(include='all').to_string()
+                
+                # 4. The Expert Prompt
+                prompt = f"""
+                You are an expert Chief Revenue Officer and Data Scientist analyzing a company's sales dataset.
+                Here is the statistical summary of the dataset:
+                
+                {summary_stats}
+                
+                Based STRICTLY on these numbers, provide 4 highly actionable, distinct business insights. 
+                Format your response with clean Markdown. Use emojis, headings, bullet points, and highlight key numbers in bold. 
+                Do not use generic advice; tie everything to the specific data provided above.
+                Categorize them clearly into two sections: 'Performance & Trends' and 'Portfolio & Behavior'.
+                """
+                
+                response = model.generate_content(prompt)
+                
+                st.success("Analysis Complete!")
+                
+                # 5. Render the AI's Markdown Response
+                st.markdown(
+                    f"""
+                    <div style="background-color: {THEMES[st.session_state.theme]['card_bg']}; 
+                                padding: 2rem; 
+                                border-radius: 12px; 
+                                border: 1px solid {THEMES[st.session_state.theme]['border']};">
+                        {response.text}
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+                
+            except Exception as e:
+                st.error(f"Failed to generate insights. Make sure your API key is valid. Error details: {e}")
 
 # ==========================================
 # 7. FORECASTING & MACHINE LEARNING
@@ -510,11 +551,13 @@ def render_forecasting(df):
         fig.add_trace(go.Scatter(x=daily_sales['order_date'], y=daily_sales['30-Day MA'], name='30-Day Trend', line=dict(color=t['secondary'], width=3)))
         fig.add_trace(go.Scatter(x=future_df['order_date'], y=future_df['Forecasted Sales'], name='30-Day Forecast (Linear)', line=dict(color=t['text_primary'], width=3, dash='dot')))
         
+        t = THEMES[st.session_state.theme] # Get the current theme
         fig.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=20, r=20, t=40, b=20),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)")
+            font=dict(color=t['text_secondary']), # Fixes the legend and title
+            xaxis=dict(showgrid=False, color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
+            yaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary']))
         )
         st.plotly_chart(fig, use_container_width=True)
         st.info(f"**Projection Insight**: Based on historical linear trends, sales are projected to trend towards **${future_y[-1]:,.2f}** per day by the end of the next 30-day period.")
@@ -534,13 +577,16 @@ def render_rfm_analysis(df):
         
     current_date = df['order_date'].max()
     
-    rfm = df.groupby(customer_col).agg({
-        'order_date': lambda x: (current_date - x.max()).days, # Recency
-        'order_id': 'nunique' if 'order_id' in df.columns else 'count', # Frequency
-        'sales': 'sum' # Monetary
-    }).reset_index()
+    freq_col = 'order_id' if 'order_id' in df.columns else 'sales'
+    freq_agg = 'nunique' if 'order_id' in df.columns else 'count'
     
-    rfm.rename(columns={'order_date': 'Recency (Days)', 'order_id': 'Frequency', 'sales': 'Total Spend ($)'}, inplace=True)
+    rfm = df.groupby(customer_col).agg(
+        Recency=('order_date', lambda x: (current_date - x.max()).days),
+        Frequency=(freq_col, freq_agg),
+        Monetary=('sales', 'sum')
+    ).reset_index()
+    
+    rfm.rename(columns={'Recency': 'Recency (Days)', 'Monetary': 'Total Spend ($)'}, inplace=True)
     
     quantiles = rfm[['Recency (Days)', 'Frequency', 'Total Spend ($)']].quantile(q=[0.33, 0.66])
     
@@ -564,18 +610,33 @@ def render_rfm_analysis(df):
     col1, col2 = st.columns(2, gap="large")
     with col1:
         st.error(f"**Action Required**: You have **{len(at_risk)}** high-value customers who haven't purchased recently. Immediate retention campaign recommended.")
-        st.dataframe(at_risk.sort_values('Total Spend ($)', ascending=False).head(10), use_container_width=True)
+        t = THEMES[st.session_state.theme]
+        rfm_display = at_risk.sort_values('Total Spend ($)', ascending=False).head(10)
+        styled_rfm = rfm_display.style.set_properties(**{
+            'background-color': t['card_bg'],
+            'color': t['text_primary'],
+            'border-color': t['border']
+        })
+        st.dataframe(styled_rfm, use_container_width=True)
         
     with col2:
         fig = px.scatter(rfm, x='Recency (Days)', y='Total Spend ($)', color='R', 
                          hover_name=customer_col, size='Frequency',
                          title="Recency vs Spend (Color: Recency Score)",
                          color_continuous_scale="RdYlGn")
+        t = THEMES[st.session_state.theme] 
+        
+        # Aggressively force all fonts, axes, and colorbars to match the theme
         fig.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=20, r=20, t=40, b=20),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)")
+            font=dict(color=t['text_secondary']), # Forces the title text color
+            xaxis=dict(showgrid=False, color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
+            yaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
+            coloraxis_colorbar=dict(
+                title_font=dict(color=t['text_secondary']),
+                tickfont=dict(color=t['text_secondary'])
+            )
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -652,7 +713,7 @@ def render_chat_data(df):
 
 # ==========================================
 # ==========================================
-# 9.5. AUTHENTICATION SYSTEM
+# 9.5. ADVANCED AUTHENTICATION SYSTEM
 # ==========================================
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -678,17 +739,31 @@ def authenticate(email_or_phone, password):
         return True
     return False
 
+def reset_password(email_or_phone, new_password):
+    users = load_users()
+    if email_or_phone in users:
+        users[email_or_phone] = hash_password(new_password)
+        with open('users.json', 'w') as f:
+            json.dump(users, f)
+        return True
+    return False
+
+def generate_otp():
+    """Generates a 6-digit OTP."""
+    return str(random.randint(100000, 999999))
+
 def render_login():
     st.markdown("<h1 style='text-align: center; margin-top: 5rem;'>🔐 AI Sales Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #94a3b8;'>Please log in or sign up to access the enterprise portal.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #94a3b8;'>Secure enterprise portal access.</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        tab1, tab2 = st.tabs(["🔑 Login", "📝 Sign Up"])
+        tab1, tab2, tab3, tab4 = st.tabs(["🔑 Login", "📝 Sign Up", "🔄 Reset Password", "📱 OTP Login"])
         
+        # --- TAB 1: STANDARD LOGIN ---
         with tab1:
             with st.form("login_form"):
-                st.markdown("### Log In")
+                st.markdown("### Account Login")
                 email_or_phone = st.text_input("Email or Mobile Number")
                 password = st.text_input("Password", type="password")
                 submit = st.form_submit_button("Login", use_container_width=True)
@@ -699,13 +774,14 @@ def render_login():
                         st.session_state.current_user = email_or_phone
                         st.rerun()
                     else:
-                        st.error("Invalid email/phone or password.")
+                        st.error("Invalid credentials.")
                         
+        # --- TAB 2: SIGN UP ---
         with tab2:
             with st.form("signup_form"):
                 st.markdown("### Create an Account")
-                new_email_or_phone = st.text_input("Email or Mobile Number")
-                new_password = st.text_input("Password", type="password")
+                new_email_or_phone = st.text_input("Email or Mobile Number", key="signup_user")
+                new_password = st.text_input("Password", type="password", key="signup_pass")
                 confirm_password = st.text_input("Confirm Password", type="password")
                 signup_submit = st.form_submit_button("Sign Up", use_container_width=True)
                 
@@ -715,12 +791,60 @@ def render_login():
                     elif len(new_password) < 6:
                         st.error("Password must be at least 6 characters.")
                     elif not new_email_or_phone:
-                        st.error("Please enter a valid email or mobile number.")
+                        st.error("Please enter a valid identifier.")
                     else:
                         if save_user(new_email_or_phone, new_password):
-                            st.success("Account created successfully! Please switch to the Login tab.")
+                            st.success("Account created successfully! Switch to the Login tab.")
                         else:
-                            st.error("An account with this email/phone already exists.")
+                            st.error("Account already exists.")
+
+        # --- TAB 3: FORGOT PASSWORD ---
+        with tab3:
+            st.markdown("### Reset Password")
+            reset_user = st.text_input("Enter your registered Email/Phone")
+            new_reset_pass = st.text_input("New Password", type="password")
+            
+            if st.button("Update Password", use_container_width=True):
+                if not reset_user or not new_reset_pass:
+                    st.error("Please fill in all fields.")
+                elif reset_password(reset_user, new_reset_pass):
+                    st.success("Password updated! You can now log in.")
+                else:
+                    st.error("Account not found.")
+
+        # --- TAB 4: OTP LOGIN ---
+        with tab4:
+            st.markdown("### Login via OTP")
+            otp_user = st.text_input("Registered Email/Phone", key="otp_user")
+            
+            # Use session state to track if an OTP was sent
+            if 'generated_otp' not in st.session_state:
+                st.session_state.generated_otp = None
+                
+            if st.button("Send OTP", use_container_width=True):
+                users = load_users()
+                if otp_user in users:
+                    # Generate and store OTP in session
+                    st.session_state.generated_otp = generate_otp()
+                    st.session_state.otp_target_user = otp_user
+                    # In a real app, you would send this via Twilio/SendGrid here.
+                    # For now, we display it on screen for testing.
+                    st.info(f"*(Simulation)* An OTP has been sent! Your code is: **{st.session_state.generated_otp}**")
+                else:
+                    st.error("Account not found.")
+            
+            # Only show verification box if OTP was generated
+            if st.session_state.generated_otp:
+                entered_otp = st.text_input("Enter 6-digit OTP")
+                if st.button("Verify & Login", use_container_width=True):
+                    if entered_otp == st.session_state.generated_otp and otp_user == st.session_state.otp_target_user:
+                        st.session_state.logged_in = True
+                        st.session_state.current_user = otp_user
+                        # Clear OTP state after successful login
+                        st.session_state.generated_otp = None 
+                        st.rerun()
+                    else:
+                        st.error("Invalid or expired OTP.")
 
 # ==========================================
 # 10. MAIN APPLICATION ROUTER
@@ -733,8 +857,8 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    if 'theme' not in st.session_state:
-        st.session_state.theme = "Midnight Indigo"
+    if 'theme' not in st.session_state or st.session_state.theme not in THEMES:
+        st.session_state.theme = "Modern Dark"
         
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
@@ -778,8 +902,50 @@ def main():
         df = load_data(uploaded_file)
         
         if df is not None:
+            # ------------------------------------------
+            # DYNAMIC COLUMN MAPPING
+            # ------------------------------------------
+            st.sidebar.markdown("---")
+            st.sidebar.title("⚙️ Column Mapping")
+            st.sidebar.markdown("We attempted to auto-detect your columns. Please adjust if incorrect:")
+            
+            numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+            all_cols = df.columns.tolist()
+            
+            def get_default(candidates, options):
+                if not options: return 0
+                for c in candidates:
+                    for opt in options:
+                        if c in str(opt).lower(): return options.index(opt)
+                return 0
+
+            # Add "None" fallback
+            sales_col = st.sidebar.selectbox("💰 Sales/Value Column", numeric_cols if numeric_cols else ["None"], index=get_default(['sales', 'revenue', 'amount', 'total', 'price', 'profit'], numeric_cols))
+            date_col = st.sidebar.selectbox("📅 Date Column", all_cols + ["None"], index=get_default(['date', 'time', 'year'], all_cols))
+            category_col = st.sidebar.selectbox("📦 Category Column", all_cols + ["None"], index=get_default(['category', 'segment', 'type', 'dept'], all_cols))
+            region_col = st.sidebar.selectbox("🌍 Region/Location Column", all_cols + ["None"], index=get_default(['region', 'state', 'city', 'country', 'loc'], all_cols))
+            product_col = st.sidebar.selectbox("🛒 Product Column", all_cols + ["None"], index=get_default(['product', 'item', 'name', 'desc'], all_cols))
+            customer_col = st.sidebar.selectbox("👤 Customer ID Column", all_cols + ["None"], index=get_default(['customer', 'client', 'user', 'id'], all_cols))
+            
+            rename_dict = {}
+            if sales_col and sales_col != "None": rename_dict[sales_col] = 'sales'
+            if date_col and date_col != "None": rename_dict[date_col] = 'order_date'
+            if category_col and category_col != "None": rename_dict[category_col] = 'category'
+            if region_col and region_col != "None": rename_dict[region_col] = 'region'
+            if product_col and product_col != "None": rename_dict[product_col] = 'product_name'
+            if customer_col and customer_col != "None": rename_dict[customer_col] = 'customer_id'
+            
+            mapped_df = df.copy()
+            mapped_df = mapped_df.rename(columns=rename_dict)
+            
+            # 🛠️ FIX: Drop duplicate columns that might occur from dynamic renaming
+            mapped_df = mapped_df.loc[:, ~mapped_df.columns.duplicated()]
+            
+            if "order_date" in mapped_df.columns:
+                mapped_df["order_date"] = pd.to_datetime(mapped_df["order_date"], errors='coerce')
+                
             # Render filters
-            filtered_df = render_sidebar(df)
+            filtered_df = render_sidebar(mapped_df)
             
             # Tabs for analytics
             tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
