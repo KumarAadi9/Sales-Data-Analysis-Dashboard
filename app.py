@@ -38,152 +38,140 @@ THEMES = {
         "primary": "#d97706", "secondary": "#fcd34d", "text_primary": "#fafaf9", "text_secondary": "#a8a29e",
         "chart_colors": ['#d97706', '#fcd34d', '#78350f', '#fb923c', '#b45309'], # Amber, cream, deep roast, orange
         "plotly_template": "plotly_dark"
+    },
+    "Enterprise Light": {
+        "bg": "#F8FAFC", "card_bg": "#FFFFFF", "sidebar_bg": "#FFFFFF", "border": "#E2E8F0",
+        "primary": "#2563EB", "secondary": "#3B82F6", "text_primary": "#0F172A", "text_secondary": "#64748B",
+        "chart_colors": ['#2563EB', '#10B981', '#F59E0B', '#6366F1', '#8B5CF6'],
+        "plotly_template": "plotly_white"
+    },
+    "Enterprise Dark": {
+        "bg": "#0B0F19", "card_bg": "#111827", "sidebar_bg": "#111827", "border": "#1F2937",
+        "primary": "#3B82F6", "secondary": "#60A5FA", "text_primary": "#F9FAFB", "text_secondary": "#9CA3AF",
+        "chart_colors": ['#3B82F6', '#10B981', '#FBBF24', '#818CF8', '#A78BFA'],
+        "plotly_template": "plotly_dark"
     }
 }
 
+
 def apply_theme():
-    """Injects custom CSS based on the currently selected theme."""
+    """Injects custom CSS based on the currently selected theme for an Enterprise SaaS look."""
     t = THEMES[st.session_state.theme]
     
     st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    /* Premium SaaS Typography */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    html, body, [class*="css"] {{
-        font-family: 'Outfit', sans-serif;
+    html, body, [class*="css"], span, label, p, div {{
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        letter-spacing: -0.01em;
     }}
     
-    .stApp {{
-        background-color: {t['bg']};
-    }}
+    .stApp {{ background-color: {t['bg']}; }}
     
-    /* Force Sidebar Background & Text */
+    /* Clean Sidebar */
     [data-testid="stSidebar"] > div:first-child {{
         background-color: {t['sidebar_bg']} !important;
         border-right: 1px solid {t['border']} !important;
     }}
     
-    /* Fix Input Widgets (Dropdowns, Text Boxes) */
+    /* Input Widgets & Dropdowns */
     div[data-baseweb="select"] > div, input {{
         background-color: {t['card_bg']} !important;
         color: {t['text_primary']} !important;
         border: 1px solid {t['border']} !important;
+        border-radius: 6px !important;
+        font-size: 0.9rem !important;
     }}
-    div[data-baseweb="select"] > div, input {{
+    
+    div[data-baseweb="popover"] > div, div[data-baseweb="popover"] ul, ul[role="listbox"] {{
         background-color: {t['card_bg']} !important;
-        color: {t['text_primary']} !important;
         border: 1px solid {t['border']} !important;
+        border-radius: 6px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
     }}
+    li[role="option"] {{ color: {t['text_primary']} !important; font-size: 0.9rem !important; }}
+    li[role="option"]:hover, li[aria-selected="true"] {{ background-color: {t['bg']} !important; color: {t['primary']} !important; }}
     
-    /* Fix Floating Dropdown Menus (Popovers) */
-    /* Fix Floating Dropdown Menus (Stubborn Popovers) */
-    div[data-baseweb="popover"] > div, 
-    div[data-baseweb="popover"] ul, 
-    ul[role="listbox"] {{
-        background-color: {t['card_bg']} !important;
-    }}
-    li[role="option"] {{
-        background-color: transparent !important;
-        color: {t['text_primary']} !important;
-    }}
-    li[role="option"]:hover, li[aria-selected="true"] {{
-        background-color: {t['sidebar_bg']} !important;
-        color: {t['primary']} !important;
-    }}
+    /* Global Text Hierarchy */
+    h1, h2, h3, h4, h5, h6 {{ color: {t['text_primary']} !important; font-weight: 600 !important; letter-spacing: -0.02em; }}
+    p, li, .st-emotion-cache-1wivap2 {{ color: {t['text_secondary']} !important; line-height: 1.6; }}
     
-    /* Force global text colors so Light Mode isn't invisible */
-    h1, h2, h3, h4, h5, h6, .markdown-text-container, span, label {{
-        color: {t['text_primary']} !important;
-    }}
-    
-    p, li, .st-emotion-cache-1wivap2 {{
-        color: {t['text_secondary']} !important;
-    }}
-    
-    [data-testid="stHeader"] {{background-color: transparent;}}
-    #MainMenu {{visibility: hidden;}}
-    footer {{visibility: hidden;}}
-    .stDeployButton {{display:none;}}
+    [data-testid="stHeader"] {{ background-color: transparent; }}
+    #MainMenu, footer, .stDeployButton {{ display: none; }}
 
-    .block-container {{
-        padding-top: 2rem !important;
-        padding-bottom: 3rem !important;
-        max-width: 1400px !important;
-    }}
+    .block-container {{ padding-top: 2rem !important; padding-bottom: 3rem !important; max-width: 1400px !important; }}
 
-    /* Beautiful Gradient KPI Cards */
+    /* SaaS Enterprise KPI Cards */
     div[data-testid="metric-container"] {{
         background: {t['card_bg']};
-        border-radius: 20px; /* Rounder, friendlier corners */
-        padding: 1.8rem;
+        border-radius: 8px; /* Professional sharp corners */
+        padding: 1.5rem;
         border: 1px solid {t['border']};
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy transition */
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        transition: box-shadow 0.2s ease-in-out;
     }}
 
     div[data-testid="metric-container"]:hover {{
-        transform: translateY(-6px) scale(1.02);
-        box-shadow: 0 15px 30px {t['primary']}40; /* Glowing shadow matching the primary color! */
-        border-color: {t['primary']};
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }}
     
-    div[data-testid="metric-container"] div[data-testid="stMetricValue"] {{
+    /* KPI Typography Hierarchy */
+    div[data-testid="stMetricLabel"] {{
+        color: {t['text_secondary']} !important;
+        font-weight: 500 !important;
+        font-size: 0.875rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+    }}
+    
+    div[data-testid="stMetricValue"] {{
         color: {t['text_primary']} !important;
-        font-weight: 800 !important;
-        font-size: 2.4rem !important;
-        background: -webkit-linear-gradient(45deg, {t['primary']}, {t['secondary']});
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: -1px; /* Tighter typography looks more modern */
+        font-weight: 700 !important;
+        font-size: 2rem !important;
+        letter-spacing: -0.02em;
     }}
 
     /* Chart Containers */
     [data-testid="stPlotlyChart"] {{
         background-color: {t['card_bg']};
-        border-radius: 16px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
         border: 1px solid {t['border']};
-        overflow: hidden;
+        padding: 1rem;
+        box-sizing: border-box; /* Forces padding inward to prevent clipping */
     }}
 
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 24px;
-        background-color: transparent;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        height: 3rem;
-        background-color: transparent;
-        color: {t['text_secondary']} !important;
-        font-weight: 500;
-        font-size: 1.1rem;
-    }}
-    .stTabs [aria-selected="true"] {{
-        color: {t['text_primary']} !important;
-        border-bottom-color: {t['primary']} !important;
-    }}
-    .stTabs [data-baseweb="tab-highlight"] {{
-        background-color: {t['primary']};
-    }}
-    /* Fix All Buttons (Standard, Download, Submit) */
+    /* Minimal Tabs */
+    .stTabs [data-baseweb="tab-list"] {{ gap: 2rem; background-color: transparent; border-bottom: 1px solid {t['border']}; }}
+    .stTabs [data-baseweb="tab"] {{ height: 3rem; background-color: transparent; color: {t['text_secondary']} !important; font-weight: 500; font-size: 1rem; padding-bottom: 0; }}
+    .stTabs [aria-selected="true"] {{ color: {t['text_primary']} !important; border-bottom: 2px solid {t['primary']} !important; }}
+    .stTabs [data-baseweb="tab-highlight"] {{ display: none; }} /* Hide default heavy highlight */
+
+    /* Professional Buttons */
     div.stButton > button, div.stDownloadButton > button, div.stFormSubmitButton > button {{
         background-color: {t['card_bg']} !important;
         color: {t['text_primary']} !important;
         border: 1px solid {t['border']} !important;
-        transition: all 0.2s ease-in-out;
+        border-radius: 6px !important;
+        font-weight: 500 !important;
+        font-size: 0.9rem !important;
+        padding: 0.5rem 1rem !important;
+        transition: all 0.15s ease-in-out;
     }}
     div.stButton > button:hover, div.stDownloadButton > button:hover, div.stFormSubmitButton > button:hover {{
         border-color: {t['primary']} !important;
         color: {t['primary']} !important;
+        background-color: {t['bg']} !important;
     }}
 
-    /* Fix File Uploader Box */
+    /* File Uploader Box */
     [data-testid="stFileUploadDropzone"] {{
         background-color: {t['card_bg']} !important;
         border: 1px dashed {t['border']} !important;
-    }}
-    [data-testid="stFileUploadDropzone"] div {{
-        color: {t['text_primary']} !important;
+        border-radius: 8px !important;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -317,13 +305,12 @@ def render_dashboard(df):
             )
             fig_cat.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=20, r=20, t=40, b=20),
+                margin=dict(l=40, r=40, t=40, b=80), 
                 showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color=t['text_secondary']))
+                legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(color=t['text_secondary']))
             )
             fig_cat.update_traces(textposition='inside', textinfo='percent', hoverinfo='label+percent+value')
             st.plotly_chart(fig_cat, use_container_width=True)
-    st.markdown("<br>", unsafe_allow_html=True)
             
     # --- CHARTS SECTION 2: Region & Products ---
     row2_col1, row2_col2 = st.columns(2, gap="large")
@@ -553,11 +540,32 @@ def render_forecasting(df):
         
         t = THEMES[st.session_state.theme] # Get the current theme
         fig.update_layout(
+            height=450, # ⬇️ FORCE the chart to be taller so nothing gets compressed
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=20, r=20, t=40, b=20),
-            font=dict(color=t['text_secondary']), # Fixes the legend and title
-            xaxis=dict(showgrid=False, color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
-            yaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary']))
+            
+            # ⬇️ Hard-coded bottom margin (b=80) to guarantee the dates stay inside the card
+            margin=dict(l=20, r=50, t=60, b=80), 
+            font=dict(color=t['text_secondary']), 
+            
+            legend=dict(
+                orientation="h", 
+                yanchor="bottom", 
+                y=1.05, # Pushed slightly higher to clear the top of the graph
+                xanchor="center", 
+                x=0.5
+            ),
+            
+            xaxis=dict(
+                # Removed automargin to stop it from fighting Streamlit
+                showgrid=False, 
+                showline=True, linecolor=t['border'], linewidth=1,
+                color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])
+            ),
+            yaxis=dict(
+                showgrid=True, gridcolor=t['border'], 
+                showline=True, linecolor=t['border'], linewidth=1,
+                color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])
+            )
         )
         st.plotly_chart(fig, use_container_width=True)
         st.info(f"**Projection Insight**: Based on historical linear trends, sales are projected to trend towards **${future_y[-1]:,.2f}** per day by the end of the next 30-day period.")
