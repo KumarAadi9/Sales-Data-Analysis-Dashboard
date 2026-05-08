@@ -8,36 +8,35 @@ import os
 import hashlib
 import random
 import jinja2
+from streamlit_cookies_controller import CookieController
 
 # ==========================================
 # 1. THEME CONFIGURATIONS & STYLING
 # ==========================================
-# ==========================================
-# 1. THEME CONFIGURATIONS & STYLING
-# ==========================================
+
 THEMES = {
-    "Executive Light": {
-        "bg": "#F8FAFC", "card_bg": "#FFFFFF", "sidebar_bg": "#F1F5F9", "border": "#E2E8F0",
-        "primary": "#3B82F6", "secondary": "#6366F1", "text_primary": "#0F172A", "text_secondary": "#475569",
-        "chart_colors": ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA'], # Soothing pastels
-        "plotly_template": "plotly_white"
-    },
-    "Modern Dark": {
-        "bg": "#0F111A", "card_bg": "#161824", "sidebar_bg": "#0B0E14", "border": "#1E293B",
-        "primary": "#3B82F6", "secondary": "#8B5CF6", "text_primary": "#FAFAFA", "text_secondary": "#94A3B8",
-        "chart_colors": ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+    "Neon Cyberpunk": {
+        "bg": "#09090b", "card_bg": "#18181b", "sidebar_bg": "#09090b", "border": "#27272a",
+        "primary": "#f472b6", "secondary": "#22d3ee", "text_primary": "#f8fafc", "text_secondary": "#a1a1aa",
+        "chart_colors": ['#f472b6', '#22d3ee', '#a855f7', '#fb923c', '#4ade80'], # Hot pink, cyan, purple, neon orange, lime
         "plotly_template": "plotly_dark"
     },
-    "Nordic Clean": {
-        "bg": "#ECEFF4", "card_bg": "#FFFFFF", "sidebar_bg": "#E5E9F0", "border": "#D8DEE9",
-        "primary": "#5E81AC", "secondary": "#81A1C1", "text_primary": "#2E3440", "text_secondary": "#4C566A",
-        "chart_colors": ['#81A1C1', '#8FBCBB', '#B48EAD', '#D08770', '#EBCB8B'], # Matte Nord colors
+    "Matcha Cloud": {
+        "bg": "#fafaf9", "card_bg": "#ffffff", "sidebar_bg": "#f5f5f4", "border": "#e7e5e4",
+        "primary": "#a3e635", "secondary": "#fbcfe8", "text_primary": "#1c1917", "text_secondary": "#78716c",
+        "chart_colors": ['#a3e635', '#fbcfe8', '#bfdbfe', '#fde047', '#c4b5fd'], # Matcha, soft pink, baby blue, pastel yellow, lavender
         "plotly_template": "plotly_white"
     },
-    "Midnight Blue": {
-        "bg": "#0F172A", "card_bg": "#1E293B", "sidebar_bg": "#0B1120", "border": "#334155",
-        "primary": "#38BDF8", "secondary": "#818CF8", "text_primary": "#F8FAFC", "text_secondary": "#94A3B8",
-        "chart_colors": ['#38BDF8', '#34D399', '#FB7185', '#FBBF24', '#C084FC'],
+    "Y2K Vaporwave": {
+        "bg": "#1e1b4b", "card_bg": "#312e81", "sidebar_bg": "#2e1065", "border": "#4c1d95",
+        "primary": "#ff00ff", "secondary": "#00ffff", "text_primary": "#ffffff", "text_secondary": "#c7d2fe",
+        "chart_colors": ['#ff00ff', '#00ffff', '#fbbf24', '#f43f5e', '#8b5cf6'], # Magenta, Cyan, Gold, Rose, Violet
+        "plotly_template": "plotly_dark"
+    },
+    "Dark Espresso": {
+        "bg": "#1c1917", "card_bg": "#292524", "sidebar_bg": "#1c1917", "border": "#44403c",
+        "primary": "#d97706", "secondary": "#fcd34d", "text_primary": "#fafaf9", "text_secondary": "#a8a29e",
+        "chart_colors": ['#d97706', '#fcd34d', '#78350f', '#fb923c', '#b45309'], # Amber, cream, deep roast, orange
         "plotly_template": "plotly_dark"
     }
 }
@@ -115,26 +114,27 @@ def apply_theme():
     /* Beautiful Gradient KPI Cards */
     div[data-testid="metric-container"] {{
         background: {t['card_bg']};
-        border-radius: 16px;
+        border-radius: 20px; /* Rounder, friendlier corners */
         padding: 1.8rem;
         border: 1px solid {t['border']};
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease-in-out;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy transition */
     }}
 
     div[data-testid="metric-container"]:hover {{
-        transform: translateY(-4px);
-        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        transform: translateY(-6px) scale(1.02);
+        box-shadow: 0 15px 30px {t['primary']}40; /* Glowing shadow matching the primary color! */
         border-color: {t['primary']};
     }}
     
     div[data-testid="metric-container"] div[data-testid="stMetricValue"] {{
         color: {t['text_primary']} !important;
-        font-weight: 700 !important;
-        font-size: 2.2rem !important;
+        font-weight: 800 !important;
+        font-size: 2.4rem !important;
         background: -webkit-linear-gradient(45deg, {t['primary']}, {t['secondary']});
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        letter-spacing: -1px; /* Tighter typography looks more modern */
     }}
 
     /* Chart Containers */
@@ -752,7 +752,7 @@ def generate_otp():
     """Generates a 6-digit OTP."""
     return str(random.randint(100000, 999999))
 
-def render_login():
+def render_login(controller):
     st.markdown("<h1 style='text-align: center; margin-top: 5rem;'>🔐 AI Sales Dashboard</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #94a3b8;'>Secure enterprise portal access.</p>", unsafe_allow_html=True)
     
@@ -772,6 +772,8 @@ def render_login():
                     if authenticate(email_or_phone, password):
                         st.session_state.logged_in = True
                         st.session_state.current_user = email_or_phone
+                        # SET COOKIE HERE
+                        controller.set('logged_in_user', email_or_phone, max_age=86400)
                         st.rerun()
                     else:
                         st.error("Invalid credentials.")
@@ -827,8 +829,6 @@ def render_login():
                     # Generate and store OTP in session
                     st.session_state.generated_otp = generate_otp()
                     st.session_state.otp_target_user = otp_user
-                    # In a real app, you would send this via Twilio/SendGrid here.
-                    # For now, we display it on screen for testing.
                     st.info(f"*(Simulation)* An OTP has been sent! Your code is: **{st.session_state.generated_otp}**")
                 else:
                     st.error("Account not found.")
@@ -840,8 +840,9 @@ def render_login():
                     if entered_otp == st.session_state.generated_otp and otp_user == st.session_state.otp_target_user:
                         st.session_state.logged_in = True
                         st.session_state.current_user = otp_user
-                        # Clear OTP state after successful login
                         st.session_state.generated_otp = None 
+                        # SET COOKIE HERE
+                        controller.set('logged_in_user', otp_user, max_age=86400)
                         st.rerun()
                     else:
                         st.error("Invalid or expired OTP.")
@@ -849,6 +850,8 @@ def render_login():
 # ==========================================
 # 10. MAIN APPLICATION ROUTER
 # ==========================================
+import time # ⬅️ Make sure this is imported!
+
 def main():
     st.set_page_config(
         page_title="AI-Powered Sales Dashboard",
@@ -857,8 +860,20 @@ def main():
         initial_sidebar_state="expanded"
     )
     
+    # 1. Initialize Controller
+    controller = CookieController()
+    
+    # ⏳ THE FIX: Force Python to wait 0.3 seconds so the browser can send the cookie!
+    time.sleep(0.3) 
+    
     if 'theme' not in st.session_state or st.session_state.theme not in THEMES:
-        st.session_state.theme = "Modern Dark"
+        st.session_state.theme = "Neon Cyberpunk"
+        
+    # 2. Check for Cookie on Startup
+    saved_user = controller.get('logged_in_user')
+    if saved_user:
+        st.session_state.logged_in = True
+        st.session_state.current_user = saved_user
         
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
@@ -870,12 +885,14 @@ def main():
     # Authentication Check
     # ------------------------------------------
     if not st.session_state.logged_in:
-        render_login()
+        render_login(controller)  # Pass the controller to the login function
         return
         
     # Sidebar Profile & Logout
     st.sidebar.markdown(f"👤 Logged in as: **{st.session_state.current_user}**")
     if st.sidebar.button("🚪 Logout", use_container_width=True):
+        # 3. Destroy Cookie on Logout
+        controller.remove('logged_in_user')
         st.session_state.logged_in = False
         st.session_state.current_user = None
         st.rerun()
