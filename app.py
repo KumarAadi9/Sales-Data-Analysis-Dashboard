@@ -18,161 +18,238 @@ THEMES = {
     "Neon Cyberpunk": {
         "bg": "#09090b", "card_bg": "#18181b", "sidebar_bg": "#09090b", "border": "#27272a",
         "primary": "#f472b6", "secondary": "#22d3ee", "text_primary": "#f8fafc", "text_secondary": "#a1a1aa",
-        "chart_colors": ['#f472b6', '#22d3ee', '#a855f7', '#fb923c', '#4ade80'], # Hot pink, cyan, purple, neon orange, lime
+        "chart_colors": ['#f472b6', '#22d3ee', '#a855f7', '#fb923c', '#4ade80'],
         "plotly_template": "plotly_dark"
     },
     "Matcha Cloud": {
         "bg": "#fafaf9", "card_bg": "#ffffff", "sidebar_bg": "#f5f5f4", "border": "#e7e5e4",
         "primary": "#a3e635", "secondary": "#fbcfe8", "text_primary": "#1c1917", "text_secondary": "#78716c",
-        "chart_colors": ['#a3e635', '#fbcfe8', '#bfdbfe', '#fde047', '#c4b5fd'], # Matcha, soft pink, baby blue, pastel yellow, lavender
+        "chart_colors": ['#a3e635', '#fbcfe8', '#bfdbfe', '#fde047', '#c4b5fd'],
         "plotly_template": "plotly_white"
     },
     "Y2K Vaporwave": {
         "bg": "#1e1b4b", "card_bg": "#312e81", "sidebar_bg": "#2e1065", "border": "#4c1d95",
         "primary": "#ff00ff", "secondary": "#00ffff", "text_primary": "#ffffff", "text_secondary": "#c7d2fe",
-        "chart_colors": ['#ff00ff', '#00ffff', '#fbbf24', '#f43f5e', '#8b5cf6'], # Magenta, Cyan, Gold, Rose, Violet
+        "chart_colors": ['#ff00ff', '#00ffff', '#fbbf24', '#f43f5e', '#8b5cf6'],
         "plotly_template": "plotly_dark"
     },
     "Dark Espresso": {
         "bg": "#1c1917", "card_bg": "#292524", "sidebar_bg": "#1c1917", "border": "#44403c",
         "primary": "#d97706", "secondary": "#fcd34d", "text_primary": "#fafaf9", "text_secondary": "#a8a29e",
-        "chart_colors": ['#d97706', '#fcd34d', '#78350f', '#fb923c', '#b45309'], # Amber, cream, deep roast, orange
+        "chart_colors": ['#d97706', '#fcd34d', '#78350f', '#fb923c', '#b45309'],
         "plotly_template": "plotly_dark"
     },
     "Enterprise Light": {
-        "bg": "#F8FAFC", "card_bg": "#FFFFFF", "sidebar_bg": "#FFFFFF", "border": "#E2E8F0",
+        "bg": "#F8FAFC", "card_bg": "#FFFFFF", "sidebar_bg": "#F1F5F9", "border": "#E2E8F0",
         "primary": "#2563EB", "secondary": "#3B82F6", "text_primary": "#0F172A", "text_secondary": "#64748B",
         "chart_colors": ['#2563EB', '#10B981', '#F59E0B', '#6366F1', '#8B5CF6'],
         "plotly_template": "plotly_white"
     },
     "Enterprise Dark": {
-        "bg": "#0B0F19", "card_bg": "#111827", "sidebar_bg": "#111827", "border": "#1F2937",
+        "bg": "#0B0F19", "card_bg": "#111827", "sidebar_bg": "#0F172A", "border": "#1F2937",
         "primary": "#3B82F6", "secondary": "#60A5FA", "text_primary": "#F9FAFB", "text_secondary": "#9CA3AF",
         "chart_colors": ['#3B82F6', '#10B981', '#FBBF24', '#818CF8', '#A78BFA'],
         "plotly_template": "plotly_dark"
     }
 }
 
-
 def apply_theme():
-    """Injects custom CSS based on the currently selected theme for an Enterprise SaaS look."""
+    """Injects custom CSS with universal adaptive colors, targeting Base Web portals and sidebars."""
     t = THEMES[st.session_state.theme]
     
     st.markdown(f"""
     <style>
-    /* Premium SaaS Typography */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
-    html, body, [class*="css"], span, label, p, div {{
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        letter-spacing: -0.01em;
+    html, body, [class*="css"] {{
+        font-family: 'Outfit', -apple-system, sans-serif !important;
     }}
     
     .stApp {{ background-color: {t['bg']}; }}
-    
-    /* Clean Sidebar */
+
+    /* 1. SMART ADAPTIVE TEXT */
+    h1, h2, h3, h4, h5, h6, .stMarkdown p, .stMarkdown li, label, .st-emotion-cache-1wivap2 {{
+        color: {t['text_primary']} !important;
+    }}
+
+    /* 2. SIDEBAR LOCKDOWN */
     [data-testid="stSidebar"] > div:first-child {{
         background-color: {t['sidebar_bg']} !important;
         border-right: 1px solid {t['border']} !important;
     }}
-    
-    /* Input Widgets & Dropdowns */
-    div[data-baseweb="select"] > div, input {{
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {{
+        color: {t['text_primary']} !important;
+    }}
+
+    /* 3. BULLETPROOF INPUT BOXES */
+    input, textarea, div[data-baseweb="select"] > div {{
         background-color: {t['card_bg']} !important;
         color: {t['text_primary']} !important;
-        border: 1px solid {t['border']} !important;
-        border-radius: 6px !important;
-        font-size: 0.9rem !important;
+        -webkit-text-fill-color: {t['text_primary']} !important;
+        border: 2px solid {t['border']} !important;
+        border-radius: 8px !important;
+        transition: all 0.2s ease;
     }}
     
-    div[data-baseweb="popover"] > div, div[data-baseweb="popover"] ul, ul[role="listbox"] {{
+    input::placeholder, textarea::placeholder {{
+        color: {t['text_secondary']} !important;
+        -webkit-text-fill-color: {t['text_secondary']} !important;
+        opacity: 0.7 !important;
+    }}
+    
+    div[data-baseweb="select"] > div:hover, input:hover, input:focus {{
+        border-color: {t['primary']} !important;
+        box-shadow: 0 0 0 1px {t['primary']} !important;
+    }}
+
+    /* 4. BASE WEB POPOVERS (Fixes the dark dropdown menu in light themes) */
+    div[data-baseweb="popover"] > div, 
+    div[data-baseweb="popover"] ul, 
+    ul[data-baseweb="menu"], 
+    ul[role="listbox"] {{
         background-color: {t['card_bg']} !important;
         border: 1px solid {t['border']} !important;
-        border-radius: 6px !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
     }}
-    li[role="option"] {{ color: {t['text_primary']} !important; font-size: 0.9rem !important; }}
-    li[role="option"]:hover, li[aria-selected="true"] {{ background-color: {t['bg']} !important; color: {t['primary']} !important; }}
     
-    /* Global Text Hierarchy */
-    h1, h2, h3, h4, h5, h6 {{ color: {t['text_primary']} !important; font-weight: 600 !important; letter-spacing: -0.02em; }}
-    p, li, .st-emotion-cache-1wivap2 {{ color: {t['text_secondary']} !important; line-height: 1.6; }}
+    li[role="option"] {{ 
+        color: {t['text_primary']} !important; 
+        background-color: transparent !important;
+    }}
     
-    [data-testid="stHeader"] {{ background-color: transparent; }}
-    #MainMenu, footer, .stDeployButton {{ display: none; }}
+    li[role="option"]:hover, li[aria-selected="true"] {{ 
+        background-color: {t['bg']} !important; 
+        color: {t['primary']} !important; 
+    }}
 
-    .block-container {{ padding-top: 2rem !important; padding-bottom: 3rem !important; max-width: 1400px !important; }}
+    /* Multiselect Tags (The selected pills) */
+    span[data-baseweb="tag"] {{
+        background-color: {t['bg']} !important;
+        color: {t['text_primary']} !important;
+        border: 1px solid {t['border']} !important;
+    }}
+    span[data-baseweb="tag"] span {{
+        color: {t['text_primary']} !important;
+    }}
 
-    /* SaaS Enterprise KPI Cards */
+    /* 5. PAGE LOAD ANIMATIONS */
+    @keyframes fadeSlideUp {{
+        0% {{ opacity: 0; transform: translateY(30px); }}
+        100% {{ opacity: 1; transform: translateY(0); }}
+    }}
+
+    div[data-testid="metric-container"], [data-testid="stPlotlyChart"], .stDataFrame, div[data-testid="stForm"] {{
+        animation: fadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }}
+
+    div[data-testid="metric-container"]:nth-child(1) {{ animation-delay: 0.1s; }}
+    div[data-testid="metric-container"]:nth-child(2) {{ animation-delay: 0.2s; }}
+    div[data-testid="metric-container"]:nth-child(3) {{ animation-delay: 0.3s; }}
+    [data-testid="stPlotlyChart"] {{ animation-delay: 0.4s; }}
+
+    /* 6. INTERACTIVE KPI CARDS & PHYSICS */
     div[data-testid="metric-container"] {{
         background: {t['card_bg']};
-        border-radius: 8px; /* Professional sharp corners */
-        padding: 1.5rem;
+        border-radius: 20px;
+        padding: 1.8rem;
         border: 1px solid {t['border']};
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-        transition: box-shadow 0.2s ease-in-out;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); 
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        position: relative;
     }}
 
     div[data-testid="metric-container"]:hover {{
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    }}
-    
-    /* KPI Typography Hierarchy */
-    div[data-testid="stMetricLabel"] {{
-        color: {t['text_secondary']} !important;
-        font-weight: 500 !important;
-        font-size: 0.875rem !important;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.25rem;
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 20px 40px {t['primary']}33; 
+        border-color: {t['primary']};
     }}
     
     div[data-testid="stMetricValue"] {{
-        color: {t['text_primary']} !important;
-        font-weight: 700 !important;
-        font-size: 2rem !important;
-        letter-spacing: -0.02em;
+        font-weight: 800 !important;
+        font-size: 2.4rem !important;
+        background: -webkit-linear-gradient(45deg, {t['primary']}, {t['secondary']});
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -1px;
     }}
 
-    /* Chart Containers */
+    div[data-testid="stMetricLabel"] {{
+        color: {t['text_secondary']} !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }}
+
+    /* 7. INTERACTIVE CHARTS */
     [data-testid="stPlotlyChart"] {{
         background-color: {t['card_bg']};
-        border-radius: 8px;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
         border: 1px solid {t['border']};
         padding: 1rem;
-        box-sizing: border-box; /* Forces padding inward to prevent clipping */
+        box-sizing: border-box;
+        transition: all 0.3s ease;
     }}
 
-    /* Minimal Tabs */
-    .stTabs [data-baseweb="tab-list"] {{ gap: 2rem; background-color: transparent; border-bottom: 1px solid {t['border']}; }}
-    .stTabs [data-baseweb="tab"] {{ height: 3rem; background-color: transparent; color: {t['text_secondary']} !important; font-weight: 500; font-size: 1rem; padding-bottom: 0; }}
-    .stTabs [aria-selected="true"] {{ color: {t['text_primary']} !important; border-bottom: 2px solid {t['primary']} !important; }}
-    .stTabs [data-baseweb="tab-highlight"] {{ display: none; }} /* Hide default heavy highlight */
+    [data-testid="stPlotlyChart"]:hover {{
+        transform: translateY(-4px);
+        box-shadow: 0 15px 35px {t['secondary']}22; 
+    }}
 
-    /* Professional Buttons */
+    /* 8. TACTILE BUTTONS (Protected White Text) */
     div.stButton > button, div.stDownloadButton > button, div.stFormSubmitButton > button {{
-        background-color: {t['card_bg']} !important;
-        color: {t['text_primary']} !important;
-        border: 1px solid {t['border']} !important;
-        border-radius: 6px !important;
-        font-weight: 500 !important;
-        font-size: 0.9rem !important;
-        padding: 0.5rem 1rem !important;
-        transition: all 0.15s ease-in-out;
+        background: linear-gradient(135deg, {t['primary']}, {t['secondary']}) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+        padding: 0.6rem 1.2rem !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 15px {t['primary']}40 !important;
+        transform: scale(1);
     }}
+    
+    div.stButton > button *, div.stDownloadButton > button *, div.stFormSubmitButton > button * {{
+        color: #ffffff !important; 
+        -webkit-text-fill-color: #ffffff !important;
+    }}
+    
     div.stButton > button:hover, div.stDownloadButton > button:hover, div.stFormSubmitButton > button:hover {{
-        border-color: {t['primary']} !important;
-        color: {t['primary']} !important;
-        background-color: {t['bg']} !important;
+        transform: scale(1.05) translateY(-2px);
+        box-shadow: 0 8px 25px {t['primary']}66 !important;
+    }}
+    
+    div.stButton > button:active, div.stDownloadButton > button:active, div.stFormSubmitButton > button:active {{
+        transform: scale(0.95) translateY(0); 
+        box-shadow: 0 2px 10px {t['primary']}40 !important;
     }}
 
-    /* File Uploader Box */
+    /* 9. ANIMATED TABS */
+    .stTabs [data-baseweb="tab-list"] {{ gap: 2rem; background-color: transparent; border-bottom: 2px solid {t['border']}; }}
+    .stTabs [data-baseweb="tab"] {{ 
+        height: 3rem; background-color: transparent; 
+        color: {t['text_secondary']} !important; font-weight: 600; font-size: 1.1rem; 
+        padding-bottom: 0; transition: color 0.3s ease;
+    }}
+    .stTabs [aria-selected="true"] {{ color: {t['primary']} !important; border-bottom: 3px solid {t['primary']} !important; }}
+    .stTabs [data-baseweb="tab-highlight"] {{ display: none; }}
+
+    /* 10. FILE UPLOADER FIXES */
     [data-testid="stFileUploadDropzone"] {{
         background-color: {t['card_bg']} !important;
-        border: 1px dashed {t['border']} !important;
-        border-radius: 8px !important;
+        border: 2px dashed {t['border']} !important;
+        border-radius: 12px !important;
     }}
+    [data-testid="stFileUploadDropzone"] * {{
+        color: {t['text_primary']} !important;
+    }}
+
+    [data-testid="stHeader"] {{ background-color: transparent; }}
+    #MainMenu, footer, .stDeployButton {{ display: none; }}
+    .block-container {{ padding-top: 2rem !important; padding-bottom: 3rem !important; max-width: 1400px !important; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -369,7 +446,7 @@ def render_data_view(df):
         # CSV Download
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Download Filtered Report (CSV)",
+            label="Download Filtered Report (CSV)",
             data=csv,
             file_name='sales_report.csv',
             mime='text/csv',
@@ -714,7 +791,7 @@ def render_chat_data(df):
                 
                 response = model.generate_content(f"{context}\n\nUser Question: {user_query}")
                 
-                st.success("🤖 AI Response:")
+                st.success("AI Response:")
                 st.markdown(response.text)
             except Exception as e:
                 st.error(f"Error generating response: {e}. (Make sure your API key is valid).")
@@ -766,7 +843,7 @@ def render_login(controller):
     
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        tab1, tab2, tab3, tab4 = st.tabs(["🔑 Login", "📝 Sign Up", "🔄 Reset Password", "📱 OTP Login"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Login", "Sign Up", "Reset Password", "OTP Login"])
         
         # --- TAB 1: STANDARD LOGIN ---
         with tab1:
@@ -897,8 +974,8 @@ def main():
         return
         
     # Sidebar Profile & Logout
-    st.sidebar.markdown(f"👤 Logged in as: **{st.session_state.current_user}**")
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
+    st.sidebar.markdown(f"Logged in as: **{st.session_state.current_user}**")
+    if st.sidebar.button("Logout", use_container_width=True):
         # 3. Destroy Cookie on Logout
         controller.remove('logged_in_user')
         st.session_state.logged_in = False
@@ -945,12 +1022,12 @@ def main():
                 return 0
 
             # Add "None" fallback
-            sales_col = st.sidebar.selectbox("💰 Sales/Value Column", numeric_cols if numeric_cols else ["None"], index=get_default(['sales', 'revenue', 'amount', 'total', 'price', 'profit'], numeric_cols))
-            date_col = st.sidebar.selectbox("📅 Date Column", all_cols + ["None"], index=get_default(['date', 'time', 'year'], all_cols))
-            category_col = st.sidebar.selectbox("📦 Category Column", all_cols + ["None"], index=get_default(['category', 'segment', 'type', 'dept'], all_cols))
-            region_col = st.sidebar.selectbox("🌍 Region/Location Column", all_cols + ["None"], index=get_default(['region', 'state', 'city', 'country', 'loc'], all_cols))
-            product_col = st.sidebar.selectbox("🛒 Product Column", all_cols + ["None"], index=get_default(['product', 'item', 'name', 'desc'], all_cols))
-            customer_col = st.sidebar.selectbox("👤 Customer ID Column", all_cols + ["None"], index=get_default(['customer', 'client', 'user', 'id'], all_cols))
+            sales_col = st.sidebar.selectbox("Sales/Value Column", numeric_cols if numeric_cols else ["None"], index=get_default(['sales', 'revenue', 'amount', 'total', 'price', 'profit'], numeric_cols))
+            date_col = st.sidebar.selectbox("Date Column", all_cols + ["None"], index=get_default(['date', 'time', 'year'], all_cols))
+            category_col = st.sidebar.selectbox("Category Column", all_cols + ["None"], index=get_default(['category', 'segment', 'type', 'dept'], all_cols))
+            region_col = st.sidebar.selectbox("Region/Location Column", all_cols + ["None"], index=get_default(['region', 'state', 'city', 'country', 'loc'], all_cols))
+            product_col = st.sidebar.selectbox("Product Column", all_cols + ["None"], index=get_default(['product', 'item', 'name', 'desc'], all_cols))
+            customer_col = st.sidebar.selectbox("Customer ID Column", all_cols + ["None"], index=get_default(['customer', 'client', 'user', 'id'], all_cols))
             
             rename_dict = {}
             if sales_col and sales_col != "None": rename_dict[sales_col] = 'sales'
@@ -974,12 +1051,12 @@ def main():
             
             # Tabs for analytics
             tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-                "📊 Dashboard", 
-                "🤖 AI Insights", 
-                "📈 Forecast", 
-                "⚠️ Risk (RFM)", 
-                "💬 Chat AI", 
-                "📥 Data & Reports"
+                "Dashboard", 
+                "AI Insights", 
+                "Forecast", 
+                "Risk (RFM)", 
+                "Chat AI", 
+                "Data & Reports"
             ])
             
             with tab1:
