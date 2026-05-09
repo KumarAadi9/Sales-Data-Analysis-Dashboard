@@ -91,6 +91,19 @@ def apply_theme():
         transition: all 0.2s ease;
     }}
     
+    /* Removes the border from the hidden search box inside dropdowns */
+    div[data-baseweb="select"] input {{
+        border: none !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }}
+    
+    /* 🛠️ THE FIX: Forces dropdown arrows to be visible on light themes */
+    div[data-baseweb="select"] svg {{
+        fill: {t['text_primary']} !important;
+        color: {t['text_primary']} !important;
+    }}
+    
     input::placeholder, textarea::placeholder {{
         color: {t['text_secondary']} !important;
         -webkit-text-fill-color: {t['text_secondary']} !important;
