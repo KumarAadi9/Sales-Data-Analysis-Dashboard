@@ -54,7 +54,7 @@ THEMES = {
 }
 
 def apply_theme():
-    """Injects custom CSS with universal adaptive colors, targeting Base Web portals and sidebars."""
+    # Injects custom CSS with universal adaptive colors
     t = THEMES[st.session_state.theme]
     
     st.markdown(f"""
@@ -98,7 +98,7 @@ def apply_theme():
         box-shadow: none !important;
     }}
     
-    /* 🛠️ THE FIX: Forces dropdown arrows to be visible on light themes */
+    /* Forces dropdown arrows to be visible on light themes */
     div[data-baseweb="select"] svg {{
         fill: {t['text_primary']} !important;
         color: {t['text_primary']} !important;
@@ -115,7 +115,7 @@ def apply_theme():
         box-shadow: 0 0 0 1px {t['primary']} !important;
     }}
 
-    /* 4. BASE WEB POPOVERS (Fixes the dark dropdown menu in light themes) */
+    /* 4. BASE WEB POPOVERS */
     div[data-baseweb="popover"] > div, 
     div[data-baseweb="popover"] ul, 
     ul[data-baseweb="menu"], 
@@ -136,7 +136,7 @@ def apply_theme():
         color: {t['primary']} !important; 
     }}
 
-    /* Multiselect Tags (The selected pills) */
+    /* Multiselect Tags */
     span[data-baseweb="tag"] {{
         background-color: {t['bg']} !important;
         color: {t['text_primary']} !important;
@@ -211,7 +211,7 @@ def apply_theme():
         box-shadow: 0 15px 35px {t['secondary']}22; 
     }}
 
-    /* 8. TACTILE BUTTONS (Protected White Text) */
+    /* 8. TACTILE BUTTONS */
     div.stButton > button, div.stDownloadButton > button, div.stFormSubmitButton > button {{
         background: linear-gradient(135deg, {t['primary']}, {t['secondary']}) !important;
         color: #ffffff !important;
@@ -256,13 +256,39 @@ def apply_theme():
         border: 2px dashed {t['border']} !important;
         border-radius: 12px !important;
     }}
+    
     [data-testid="stFileUploadDropzone"] * {{
         color: {t['text_primary']} !important;
     }}
 
-    [data-testid="stHeader"] {{ background-color: transparent; }}
+    [data-testid="stUploadedFile"] {{
+        background-color: {t['bg']} !important;
+        border: 1px solid {t['border']} !important;
+        border-radius: 8px !important;
+    }}
+    
+    [data-testid="stUploadedFile"] > div:first-child > div:first-child {{
+        background-color: transparent !important; 
+    }}
+
+    [data-testid="stUploadedFile"] span, 
+    [data-testid="stUploadedFile"] small,
+    [data-testid="stUploadedFile"] button {{
+        color: {t['text_primary']} !important;
+    }}
+
+    [data-testid="stUploadedFile"] svg {{
+        fill: {t['text_primary']} !important;
+        color: {t['text_primary']} !important;
+    }}
+
+    /* 11. TOP HEADER & LAYOUT FIXES (Forces header to match theme) */
+    [data-testid="stHeader"] {{ 
+        background-color: {t['bg']} !important; 
+    }}
     #MainMenu, footer, .stDeployButton {{ display: none; }}
     .block-container {{ padding-top: 2rem !important; padding-bottom: 3rem !important; max-width: 1400px !important; }}
+    
     </style>
     """, unsafe_allow_html=True)
 
@@ -271,17 +297,15 @@ def apply_theme():
 # ==========================================
 @st.cache_data
 def load_data(uploaded_file):
-    """Loads CSV or Excel data and normalizes column names."""
+    # Loads CSV or Excel data and normalizes column names
     try:
         if uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(uploaded_file, encoding="latin1")
         else:
             df = pd.read_excel(uploaded_file)
             
-        # Standardize column names (lowercase, replace spaces with underscores)
         df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
         
-        # Parse dates if order_date exists
         if "order_date" in df.columns:
             df["order_date"] = pd.to_datetime(df["order_date"], errors='coerce')
             
@@ -294,7 +318,7 @@ def load_data(uploaded_file):
 # 3. SIDEBAR CONTROLS & FILTERS
 # ==========================================
 def render_sidebar(df):
-    """Renders the sidebar global data filters."""
+    # Renders the sidebar global data filters
     st.sidebar.title("🎨 Theme Settings")
     selected_theme = st.sidebar.selectbox("Select Theme", options=list(THEMES.keys()), index=list(THEMES.keys()).index(st.session_state.theme))
     if selected_theme != st.session_state.theme:
@@ -307,7 +331,6 @@ def render_sidebar(df):
     
     filtered_df = df.copy()
     
-    # 3a. Date Range Filter
     if "order_date" in filtered_df.columns:
         valid_dates = filtered_df["order_date"].dropna()
         if not valid_dates.empty:
@@ -321,13 +344,11 @@ def render_sidebar(df):
                     (filtered_df["order_date"].dt.date <= end_date)
                 ]
     
-    # 3b. Region Filter
     if "region" in filtered_df.columns:
         regions = st.sidebar.multiselect("Select Region", options=sorted(df["region"].dropna().unique()))
         if regions:
             filtered_df = filtered_df[filtered_df["region"].isin(regions)]
             
-    # 3c. Category Filter
     if "category" in filtered_df.columns:
         categories = st.sidebar.multiselect("Select Category", options=sorted(df["category"].dropna().unique()))
         if categories:
@@ -339,7 +360,7 @@ def render_sidebar(df):
 # 4. DASHBOARD VIEW (KPIs & Charts)
 # ==========================================
 def render_dashboard(df):
-    """Renders the main executive dashboard with metrics and visual charts."""
+    # Renders the main executive dashboard with metrics and visual charts
     st.header("Executive Sales Dashboard")
     t = THEMES[st.session_state.theme]
     
@@ -347,7 +368,6 @@ def render_dashboard(df):
         st.warning("No data available for the selected filters.")
         return
 
-    # --- KPI SECTION ---
     st.markdown("### Key Performance Indicators")
     total_sales = df["sales"].sum() if "sales" in df.columns else 0
     total_profit = df["profit"].sum() if "profit" in df.columns else 0
@@ -360,8 +380,7 @@ def render_dashboard(df):
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # --- CHARTS SECTION 1: Trend & Category ---
-    row1_col1, row1_col2 = st.columns((2, 1), gap="large") # Trend gets more space
+    row1_col1, row1_col2 = st.columns((2, 1), gap="large") 
     
     with row1_col1:
         if "order_date" in df.columns and "sales" in df.columns:
@@ -402,7 +421,6 @@ def render_dashboard(df):
             fig_cat.update_traces(textposition='inside', textinfo='percent', hoverinfo='label+percent+value')
             st.plotly_chart(fig_cat, use_container_width=True)
             
-    # --- CHARTS SECTION 2: Region & Products ---
     row2_col1, row2_col2 = st.columns(2, gap="large")
     
     with row2_col1:
@@ -424,7 +442,6 @@ def render_dashboard(df):
             st.plotly_chart(fig_region, use_container_width=True)
             
     with row2_col2:
-        # Check for product_name or just product
         prod_col = "product_name" if "product_name" in df.columns else "product" if "product" in df.columns else None
         if prod_col and "sales" in df.columns:
             st.subheader("Top 10 Selling Products")
@@ -441,7 +458,6 @@ def render_dashboard(df):
                 xaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
                 yaxis=dict(showgrid=False, color=t['text_secondary'], tickfont=dict(color=t['text_secondary']))
             )
-            # Truncate long product names for better display
             fig_top.update_yaxes(ticktext=[f"{str(name)[:30]}..." if len(str(name)) > 30 else name for name in top_products[prod_col]], 
                                  tickvals=top_products[prod_col])
             st.plotly_chart(fig_top, use_container_width=True)
@@ -450,13 +466,12 @@ def render_dashboard(df):
 # 5. DATA VIEW (Raw Data Table)
 # ==========================================
 def render_data_view(df):
-    """Renders the raw interactive dataset view and download capabilities."""
+    # Renders the raw interactive dataset view and download capabilities
     st.header("Dataset Details & Reports")
     st.write(f"Showing **{len(df):,}** rows based on current filters.")
     
     col1, col2 = st.columns(2)
     with col1:
-        # CSV Download
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="Download Filtered Report (CSV)",
@@ -466,26 +481,32 @@ def render_data_view(df):
             use_container_width=True
         )
     with col2:
-        # HTML Executive Report Download
-        total_sales = df['sales'].sum() if 'sales' in df.columns else 0
-        orders = df['order_id'].nunique() if 'order_id' in df.columns else len(df)
-        html_content = f"""
-        <html>
-        <head><title>Executive Sales Report</title></head>
-        <body style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2>Executive Sales Summary Report</h2>
-            <p>Generated automatically by the AI Sales Dashboard.</p>
-            <hr>
-            <h3>Key Metrics</h3>
-            <ul>
-                <li><b>Total Sales:</b> ${total_sales:,.2f}</li>
-                <li><b>Total Orders:</b> {orders:,}</li>
-                <li><b>Dataset Rows Analyzed:</b> {len(df):,}</li>
-            </ul>
-            <p><i>More detailed AI insights can be viewed live on the dashboard platform.</i></p>
-        </body>
-        </html>
-        """
+        total_sales = float(df['sales'].sum()) if 'sales' in df.columns else 0.0
+        orders = int(df['order_id'].nunique()) if 'order_id' in df.columns else len(df)
+        
+        sales_str = "${:,.2f}".format(total_sales)
+        orders_str = "{:,}".format(orders)
+        rows_str = "{:,}".format(len(df))
+        
+        # HTML built safely without triple quotes
+        html_content = (
+            "<html>\n"
+            "<head><title>Executive Sales Report</title></head>\n"
+            "<body style=\"font-family: 'Outfit', -apple-system, sans-serif; padding: 20px;\">\n"
+            "    <h2>Executive Sales Summary Report</h2>\n"
+            "    <p>Generated automatically by the AI Sales Dashboard.</p>\n"
+            "    <hr>\n"
+            "    <h3>Key Metrics</h3>\n"
+            "    <ul>\n"
+            f"        <li><b>Total Sales:</b> {sales_str}</li>\n"
+            f"        <li><b>Total Orders:</b> {orders_str}</li>\n"
+            f"        <li><b>Dataset Rows Analyzed:</b> {rows_str}</li>\n"
+            "    </ul>\n"
+            "    <p><i>More detailed AI insights can be viewed live on the dashboard platform.</i></p>\n"
+            "</body>\n"
+            "</html>"
+        )
+        
         st.download_button(
             label="📄 Download Executive Report (HTML)",
             data=html_content,
@@ -496,7 +517,7 @@ def render_data_view(df):
         
     st.markdown("<br>", unsafe_allow_html=True)
     t = THEMES[st.session_state.theme]
-    # Force the dataframe cells to match the current theme
+    
     styled_df = df.style.set_properties(**{
         'background-color': t['card_bg'],
         'color': t['text_primary'],
@@ -508,7 +529,7 @@ def render_data_view(df):
 # 6. AI & BUSINESS INSIGHTS
 # ==========================================
 def render_insights(df):
-    """Generates dynamic business insights using the Gemini LLM API."""
+    # Generates dynamic business insights using the Gemini LLM API
     st.header("🧠 Generative AI Business Insights")
     st.markdown("Actionable, data-driven recommendations analyzed in real-time by Google Gemini.")
     
@@ -518,7 +539,6 @@ def render_insights(df):
 
     st.markdown("---")
     
-    # 1. API Key Check (Reuses the key from your Chat Data tab)
     import os
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
@@ -535,52 +555,48 @@ def render_insights(df):
         st.info("To unlock real-time generative insights, please go to the '💬 Chat AI' tab and enter your API Key first.")
         return
 
-    # 2. The AI Generation Trigger
     if st.button("✨ Generate Custom AI Insights", use_container_width=True):
         with st.spinner("Analyzing dataset patterns... this takes a few seconds."):
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=api_key)
                 
-                # Using Gemini 1.5 Flash for fast, cost-effective text generation
                 model = genai.GenerativeModel('gemini-2.5-flash') 
                 
-                # 3. Create the Data Fingerprint
-                # include='all' ensures we get stats on categorical data too (like top region, top product)
                 summary_stats = df.describe(include='all').to_string()
                 
-                # 4. The Expert Prompt
-                prompt = f"""
-                You are an expert Chief Revenue Officer and Data Scientist analyzing a company's sales dataset.
-                Here is the statistical summary of the dataset:
-                
-                {summary_stats}
-                
-                Based STRICTLY on these numbers, provide 4 highly actionable, distinct business insights. 
-                Format your response with clean Markdown. Use emojis, headings, bullet points, and highlight key numbers in bold. 
-                Do not use generic advice; tie everything to the specific data provided above.
-                Categorize them clearly into two sections: 'Performance & Trends' and 'Portfolio & Behavior'.
-                """
+                prompt = (
+                    "You are an expert Chief Revenue Officer and Data Scientist analyzing a corporate sales dataset.\n"
+                    "Here is the statistical summary of the dataset:\n\n"
+                    f"{summary_stats}\n\n"
+                    "Based STRICTLY on these numbers, provide 4 highly actionable, distinct business insights.\n"
+                    "Format your response with clean Markdown. Use emojis, headings, bullet points, and highlight key numbers in bold.\n"
+                    "Do not use generic advice; tie everything to the specific data provided above.\n"
+                    "Categorize them clearly into two sections: Performance & Trends and Portfolio & Behavior."
+                )
                 
                 response = model.generate_content(prompt)
                 
                 st.success("Analysis Complete!")
                 
-                # 5. Render the AI's Markdown Response
-                st.markdown(
-                    f"""
-                    <div style="background-color: {THEMES[st.session_state.theme]['card_bg']}; 
-                                padding: 2rem; 
-                                border-radius: 12px; 
-                                border: 1px solid {THEMES[st.session_state.theme]['border']};">
-                        {response.text}
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
+                t = THEMES[st.session_state.theme]
+                card_bg = t['card_bg']
+                card_border = t['border']
+                response_text = response.text
+                
+                html_block = (
+                    f'<div style="background-color: {card_bg}; '
+                    f'padding: 2rem; '
+                    f'border-radius: 12px; '
+                    f'border: 1px solid {card_border};">'
+                    f'{response_text}'
+                    f'</div>'
                 )
                 
+                st.markdown(html_block, unsafe_allow_html=True)
+                
             except Exception as e:
-                st.error(f"Failed to generate insights. Make sure your API key is valid. Error details: {e}")
+                st.error(f"Failed to generate insights. Error details: {e}")
 
 # ==========================================
 # 7. FORECASTING & MACHINE LEARNING
@@ -593,7 +609,6 @@ def render_forecasting(df):
         st.warning("Forecasting requires 'order_date' and 'sales' columns.")
         return
         
-    # Aggregate daily sales
     daily_sales = df.groupby(df['order_date'].dt.date)['sales'].sum().reset_index()
     daily_sales['order_date'] = pd.to_datetime(daily_sales['order_date'])
     daily_sales = daily_sales.sort_values('order_date')
@@ -602,10 +617,8 @@ def render_forecasting(df):
         st.warning("Not enough historical data for a reliable forecast (minimum 30 days required).")
         return
         
-    # Moving Averages
     daily_sales['30-Day MA'] = daily_sales['sales'].rolling(window=30).mean()
     
-    # Basic linear projection
     x = np.arange(len(daily_sales))
     y = daily_sales['sales'].fillna(0).values
     
@@ -628,25 +641,19 @@ def render_forecasting(df):
         fig.add_trace(go.Scatter(x=daily_sales['order_date'], y=daily_sales['30-Day MA'], name='30-Day Trend', line=dict(color=t['secondary'], width=3)))
         fig.add_trace(go.Scatter(x=future_df['order_date'], y=future_df['Forecasted Sales'], name='30-Day Forecast (Linear)', line=dict(color=t['text_primary'], width=3, dash='dot')))
         
-        t = THEMES[st.session_state.theme] # Get the current theme
         fig.update_layout(
-            height=450, # ⬇️ FORCE the chart to be taller so nothing gets compressed
+            height=450,
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-            
-            # ⬇️ Hard-coded bottom margin (b=80) to guarantee the dates stay inside the card
             margin=dict(l=20, r=50, t=60, b=80), 
             font=dict(color=t['text_secondary']), 
-            
             legend=dict(
                 orientation="h", 
                 yanchor="bottom", 
-                y=1.05, # Pushed slightly higher to clear the top of the graph
+                y=1.05, 
                 xanchor="center", 
                 x=0.5
             ),
-            
             xaxis=dict(
-                # Removed automargin to stop it from fighting Streamlit
                 showgrid=False, 
                 showline=True, linecolor=t['border'], linewidth=1,
                 color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])
@@ -702,7 +709,6 @@ def render_rfm_analysis(df):
     rfm['F'] = rfm['Frequency'].apply(fm_score, args=('Frequency',))
     rfm['M'] = rfm['Total Spend ($)'].apply(fm_score, args=('Total Spend ($)',))
     
-    # Identify At-Risk High-Value Customers (R=1, F=3/2, M=3/2)
     at_risk = rfm[(rfm['R'] == 1) & (rfm['M'] >= 2)]
     
     col1, col2 = st.columns(2, gap="large")
@@ -724,11 +730,10 @@ def render_rfm_analysis(df):
                          color_continuous_scale="RdYlGn")
         t = THEMES[st.session_state.theme] 
         
-        # Aggressively force all fonts, axes, and colorbars to match the theme
         fig.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=20, r=20, t=40, b=20),
-            font=dict(color=t['text_secondary']), # Forces the title text color
+            font=dict(color=t['text_secondary']), 
             xaxis=dict(showgrid=False, color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
             yaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])),
             coloraxis_colorbar=dict(
@@ -762,11 +767,14 @@ def render_chat_data(df):
     
     if not api_key:
         st.warning("⚠️ **API Key Required**")
-        st.markdown("""
-        To enable real AI responses, please provide a free Google Gemini API Key:
-        1. Get your free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
-        2. Enter it below to activate the assistant for this session:
-        """)
+        
+        api_message = (
+            "To enable real AI responses, please provide a free Google Gemini API Key:\n"
+            "1. Get your free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)\n"
+            "2. Enter it below to activate the assistant for this session:"
+        )
+        st.markdown(api_message)
+        
         user_api_key = st.text_input("Enter Gemini API Key:", type="password")
         if user_api_key:
             st.session_state.gemini_api_key = user_api_key
@@ -787,20 +795,21 @@ def render_chat_data(df):
     if user_query:
         with st.spinner("Analyzing data and generating response..."):
             try:
-                # Create a concise context from the dataframe to avoid token limits
-                context = f"""
-                Here is a summary of the sales dataset:
-                Columns: {', '.join(df.columns)}
-                Number of rows: {len(df)}
+                cols_str = ', '.join(df.columns)
+                rows_len = len(df)
+                stats_str = df.describe().to_string()
+                head_str = df.head(3).to_string()
                 
-                Summary statistics:
-                {df.describe().to_string()}
-                
-                Top 3 rows of data:
-                {df.head(3).to_string()}
-                
-                Based on this specific data, answer the user's question. Be concise, professional, and reference specific numbers from the dataset if applicable.
-                """
+                context = (
+                    "Here is a summary of the sales dataset:\n"
+                    f"Columns: {cols_str}\n"
+                    f"Number of rows: {rows_len}\n\n"
+                    "Summary statistics:\n"
+                    f"{stats_str}\n\n"
+                    "Top 3 rows of data:\n"
+                    f"{head_str}\n\n"
+                    "Based on this specific data, answer the user question. Be concise, professional, and reference specific numbers from the dataset if applicable."
+                )
                 
                 response = model.generate_content(f"{context}\n\nUser Question: {user_query}")
                 
@@ -809,7 +818,6 @@ def render_chat_data(df):
             except Exception as e:
                 st.error(f"Error generating response: {e}. (Make sure your API key is valid).")
 
-# ==========================================
 # ==========================================
 # 9.5. ADVANCED AUTHENTICATION SYSTEM
 # ==========================================
@@ -825,7 +833,7 @@ def load_users():
 def save_user(email_or_phone, password):
     users = load_users()
     if email_or_phone in users:
-        return False # User already exists
+        return False
     users[email_or_phone] = hash_password(password)
     with open('users.json', 'w') as f:
         json.dump(users, f)
@@ -847,7 +855,7 @@ def reset_password(email_or_phone, new_password):
     return False
 
 def generate_otp():
-    """Generates a 6-digit OTP."""
+    # Generates a 6-digit random OTP
     return str(random.randint(100000, 999999))
 
 def render_login(controller):
@@ -858,7 +866,6 @@ def render_login(controller):
     with col2:
         tab1, tab2, tab3, tab4 = st.tabs(["Login", "Sign Up", "Reset Password", "OTP Login"])
         
-        # --- TAB 1: STANDARD LOGIN ---
         with tab1:
             with st.form("login_form"):
                 st.markdown("### Account Login")
@@ -870,13 +877,11 @@ def render_login(controller):
                     if authenticate(email_or_phone, password):
                         st.session_state.logged_in = True
                         st.session_state.current_user = email_or_phone
-                        # SET COOKIE HERE
                         controller.set('logged_in_user', email_or_phone, max_age=86400)
                         st.rerun()
                     else:
                         st.error("Invalid credentials.")
                         
-        # --- TAB 2: SIGN UP ---
         with tab2:
             with st.form("signup_form"):
                 st.markdown("### Create an Account")
@@ -898,7 +903,6 @@ def render_login(controller):
                         else:
                             st.error("Account already exists.")
 
-        # --- TAB 3: FORGOT PASSWORD ---
         with tab3:
             st.markdown("### Reset Password")
             reset_user = st.text_input("Enter your registered Email/Phone")
@@ -912,26 +916,22 @@ def render_login(controller):
                 else:
                     st.error("Account not found.")
 
-        # --- TAB 4: OTP LOGIN ---
         with tab4:
             st.markdown("### Login via OTP")
             otp_user = st.text_input("Registered Email/Phone", key="otp_user")
             
-            # Use session state to track if an OTP was sent
             if 'generated_otp' not in st.session_state:
                 st.session_state.generated_otp = None
                 
             if st.button("Send OTP", use_container_width=True):
                 users = load_users()
                 if otp_user in users:
-                    # Generate and store OTP in session
                     st.session_state.generated_otp = generate_otp()
                     st.session_state.otp_target_user = otp_user
                     st.info(f"*(Simulation)* An OTP has been sent! Your code is: **{st.session_state.generated_otp}**")
                 else:
                     st.error("Account not found.")
             
-            # Only show verification box if OTP was generated
             if st.session_state.generated_otp:
                 entered_otp = st.text_input("Enter 6-digit OTP")
                 if st.button("Verify & Login", use_container_width=True):
@@ -939,7 +939,6 @@ def render_login(controller):
                         st.session_state.logged_in = True
                         st.session_state.current_user = otp_user
                         st.session_state.generated_otp = None 
-                        # SET COOKIE HERE
                         controller.set('logged_in_user', otp_user, max_age=86400)
                         st.rerun()
                     else:
@@ -948,7 +947,7 @@ def render_login(controller):
 # ==========================================
 # 10. MAIN APPLICATION ROUTER
 # ==========================================
-import time # ⬅️ Make sure this is imported!
+import time
 
 def main():
     st.set_page_config(
@@ -958,16 +957,13 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    # 1. Initialize Controller
     controller = CookieController()
     
-    # ⏳ THE FIX: Force Python to wait 0.3 seconds so the browser can send the cookie!
     time.sleep(0.3) 
     
     if 'theme' not in st.session_state or st.session_state.theme not in THEMES:
         st.session_state.theme = "Neon Cyberpunk"
         
-    # 2. Check for Cookie on Startup
     saved_user = controller.get('logged_in_user')
     if saved_user:
         st.session_state.logged_in = True
@@ -979,17 +975,12 @@ def main():
         
     apply_theme()
     
-    # ------------------------------------------
-    # Authentication Check
-    # ------------------------------------------
     if not st.session_state.logged_in:
-        render_login(controller)  # Pass the controller to the login function
+        render_login(controller)
         return
         
-    # Sidebar Profile & Logout
     st.sidebar.markdown(f"Logged in as: **{st.session_state.current_user}**")
     if st.sidebar.button("Logout", use_container_width=True):
-        # 3. Destroy Cookie on Logout
         controller.remove('logged_in_user')
         st.session_state.logged_in = False
         st.session_state.current_user = None
@@ -1003,23 +994,21 @@ def main():
         st.title("Welcome to the AI Analytics Dashboard ✨")
         st.info("👈 Please upload your Sales Data (CSV or Excel) from the sidebar to begin.")
         
-        st.markdown("""
-        ### Features of this Dashboard:
-        * **CSV and Excel Support**: Seamlessly process standard spreadsheet formats.
-        * **Interactive Global Filters**: Filter by Date, Region, and Category from the sidebar.
-        * **Modern UI & Responsive Design**: Adapts flawlessly to Light and Dark modes.
-        * **Executive KPI Cards**: Track Sales, Profit, and Orders at a glance.
-        * **Advanced Visualizations**: Top products, regional analysis, and monthly trends using Plotly.
-        * **AI-Generated Insights**: Automated business recommendations to drive decision making.
-        """)
+        features_text = (
+            "### Features of this Dashboard:\n"
+            "* **CSV and Excel Support**: Seamlessly process standard spreadsheet formats.\n"
+            "* **Interactive Global Filters**: Filter by Date, Region, and Category from the sidebar.\n"
+            "* **Modern UI & Responsive Design**: Adapts flawlessly to Light and Dark modes.\n"
+            "* **Executive KPI Cards**: Track Sales, Profit, and Orders at a glance.\n"
+            "* **Advanced Visualizations**: Top products, regional analysis, and monthly trends using Plotly.\n"
+            "* **AI-Generated Insights**: Automated business recommendations to drive decision making."
+        )
+        st.markdown(features_text)
+        
     else:
-        # Load and parse data
         df = load_data(uploaded_file)
         
         if df is not None:
-            # ------------------------------------------
-            # DYNAMIC COLUMN MAPPING
-            # ------------------------------------------
             st.sidebar.markdown("---")
             st.sidebar.title("⚙️ Column Mapping")
             st.sidebar.markdown("We attempted to auto-detect your columns. Please adjust if incorrect:")
@@ -1034,7 +1023,6 @@ def main():
                         if c in str(opt).lower(): return options.index(opt)
                 return 0
 
-            # Add "None" fallback
             sales_col = st.sidebar.selectbox("Sales/Value Column", numeric_cols if numeric_cols else ["None"], index=get_default(['sales', 'revenue', 'amount', 'total', 'price', 'profit'], numeric_cols))
             date_col = st.sidebar.selectbox("Date Column", all_cols + ["None"], index=get_default(['date', 'time', 'year'], all_cols))
             category_col = st.sidebar.selectbox("Category Column", all_cols + ["None"], index=get_default(['category', 'segment', 'type', 'dept'], all_cols))
@@ -1053,16 +1041,13 @@ def main():
             mapped_df = df.copy()
             mapped_df = mapped_df.rename(columns=rename_dict)
             
-            # 🛠️ FIX: Drop duplicate columns that might occur from dynamic renaming
             mapped_df = mapped_df.loc[:, ~mapped_df.columns.duplicated()]
             
             if "order_date" in mapped_df.columns:
                 mapped_df["order_date"] = pd.to_datetime(mapped_df["order_date"], errors='coerce')
                 
-            # Render filters
             filtered_df = render_sidebar(mapped_df)
             
-            # Tabs for analytics
             tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
                 "Dashboard", 
                 "AI Insights", 
