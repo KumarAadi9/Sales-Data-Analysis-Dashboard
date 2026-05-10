@@ -7,6 +7,9 @@ import json
 import os
 import hashlib
 import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import jinja2
 from streamlit_cookies_controller import CookieController
 
@@ -250,7 +253,7 @@ def apply_theme():
     .stTabs [aria-selected="true"] {{ color: {t['primary']} !important; border-bottom: 3px solid {t['primary']} !important; }}
     .stTabs [data-baseweb="tab-highlight"] {{ display: none; }}
 
-    /* 10. FILE UPLOADER FIXES */
+   /* 10. FILE UPLOADER FIXES */
     [data-testid="stFileUploadDropzone"] {{
         background-color: {t['card_bg']} !important;
         border: 2px dashed {t['border']} !important;
@@ -261,25 +264,21 @@ def apply_theme():
         color: {t['text_primary']} !important;
     }}
 
-    [data-testid="stUploadedFile"] {{
+    /* 🛑 THE ABSOLUTE OVERRIDE FOR THE FILE PILL */
+    [data-testid="stUploadedFile"],
+    div.stUploadedFile {{
         background-color: {t['bg']} !important;
         border: 1px solid {t['border']} !important;
         border-radius: 8px !important;
     }}
-    
-    [data-testid="stUploadedFile"] > div:first-child > div:first-child {{
-        background-color: transparent !important; 
-    }}
 
-    [data-testid="stUploadedFile"] span, 
-    [data-testid="stUploadedFile"] small,
-    [data-testid="stUploadedFile"] button {{
+    /* Nuke EVERY background color on EVERY child element inside the file box */
+    [data-testid="stUploadedFile"] *,
+    div.stUploadedFile * {{
+        background-color: transparent !important;
         color: {t['text_primary']} !important;
-    }}
-
-    [data-testid="stUploadedFile"] svg {{
         fill: {t['text_primary']} !important;
-        color: {t['text_primary']} !important;
+        box-shadow: none !important;
     }}
 
     /* 11. TOP HEADER & LAYOUT FIXES (Forces header to match theme) */
@@ -854,9 +853,30 @@ def reset_password(email_or_phone, new_password):
         return True
     return False
 
-def generate_otp():
-    # Generates a 6-digit random OTP
-    return str(random.randint(100000, 999999))
+def send_reset_email(target_email, otp_code):
+    # ⚠️ IMPORTANT: Replace these with your actual email details
+    sender_email = "aadiakarsh@gmail.com" 
+    # Must be a 16-digit Google App Password, NOT your normal Gmail password!
+    sender_password = "ufqf plte dtwd xphf" 
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = target_email
+    msg['Subject'] = "AI Dashboard - Password Reset Code"
+
+    body = f"Your secure password reset code is: {otp_code}\n\nIf you did not request this, please ignore this email."
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Email failed: {e}")
+        return False
 
 def render_login(controller):
     st.markdown("<h1 style='text-align: center; margin-top: 5rem;'>🔐 AI Sales Dashboard</h1>", unsafe_allow_html=True)
@@ -864,7 +884,8 @@ def render_login(controller):
     
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        tab1, tab2, tab3, tab4 = st.tabs(["Login", "Sign Up", "Reset Password", "OTP Login"])
+        # Reduced to just 2 standard tabs
+        tab1, tab2 = st.tabs(["Login", "Sign Up"])
         
         with tab1:
             with st.form("login_form"):
@@ -881,6 +902,60 @@ def render_login(controller):
                         st.rerun()
                     else:
                         st.error("Invalid credentials.")
+            
+            # 🛠️ THE FIX: Forgotten Password is now an expander inside the Login tab
+            # 🛠️ THE REAL EMAIL FLOW
+            with st.expander("Forgotten Password?"):
+                if 'reset_step' not in st.session_state:
+                    st.session_state.reset_step = 'request_code'
+                
+                # STEP 1: Request the code & Send Email
+                if st.session_state.reset_step == 'request_code':
+                    reset_user = st.text_input("Enter your registered Email", key="reset_user_input")
+                    if st.button("Send Confirmation Code", use_container_width=True):
+                        users = load_users()
+                        if reset_user in users:
+                            with st.spinner("Sending email..."):
+                                generated_otp = str(random.randint(100000, 999999))
+                                
+                                # Call our new email function!
+                                if send_reset_email(reset_user, generated_otp):
+                                    st.session_state.reset_otp = generated_otp
+                                    st.session_state.reset_target_user = reset_user
+                                    st.session_state.reset_step = 'verify_code'
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to send email. Check server settings.")
+                        else:
+                            st.error("Account not found.")
+                
+                # STEP 2: Verify code and set new password
+                elif st.session_state.reset_step == 'verify_code':
+                    st.success(f"📧 A confirmation code has been sent to {st.session_state.reset_target_user}!")
+                    
+                    entered_code = st.text_input("Enter 6-digit Confirmation Code", key="reset_code_input")
+                    new_reset_pass = st.text_input("New Password", type="password", key="reset_new_pass")
+                    confirm_reset_pass = st.text_input("Confirm New Password", type="password", key="reset_confirm_pass")
+                    
+                    btn_col1, btn_col2 = st.columns(2)
+                    with btn_col1:
+                        if st.button("Cancel", use_container_width=True):
+                            st.session_state.reset_step = 'request_code'
+                            st.rerun()
+                    with btn_col2:
+                        if st.button("Verify & Update", use_container_width=True):
+                            if entered_code != st.session_state.reset_otp:
+                                st.error("Invalid confirmation code.")
+                            elif new_reset_pass != confirm_reset_pass:
+                                st.error("Passwords do not match.")
+                            elif len(new_reset_pass) < 6:
+                                st.error("Password must be at least 6 characters.")
+                            else:
+                                if reset_password(st.session_state.reset_target_user, new_reset_pass):
+                                    st.success("Password updated! You can now log in.")
+                                    st.session_state.reset_step = 'request_code'
+                                else:
+                                    st.error("An error occurred.")
                         
         with tab2:
             with st.form("signup_form"):
@@ -902,47 +977,6 @@ def render_login(controller):
                             st.success("Account created successfully! Switch to the Login tab.")
                         else:
                             st.error("Account already exists.")
-
-        with tab3:
-            st.markdown("### Reset Password")
-            reset_user = st.text_input("Enter your registered Email/Phone")
-            new_reset_pass = st.text_input("New Password", type="password")
-            
-            if st.button("Update Password", use_container_width=True):
-                if not reset_user or not new_reset_pass:
-                    st.error("Please fill in all fields.")
-                elif reset_password(reset_user, new_reset_pass):
-                    st.success("Password updated! You can now log in.")
-                else:
-                    st.error("Account not found.")
-
-        with tab4:
-            st.markdown("### Login via OTP")
-            otp_user = st.text_input("Registered Email/Phone", key="otp_user")
-            
-            if 'generated_otp' not in st.session_state:
-                st.session_state.generated_otp = None
-                
-            if st.button("Send OTP", use_container_width=True):
-                users = load_users()
-                if otp_user in users:
-                    st.session_state.generated_otp = generate_otp()
-                    st.session_state.otp_target_user = otp_user
-                    st.info(f"*(Simulation)* An OTP has been sent! Your code is: **{st.session_state.generated_otp}**")
-                else:
-                    st.error("Account not found.")
-            
-            if st.session_state.generated_otp:
-                entered_otp = st.text_input("Enter 6-digit OTP")
-                if st.button("Verify & Login", use_container_width=True):
-                    if entered_otp == st.session_state.generated_otp and otp_user == st.session_state.otp_target_user:
-                        st.session_state.logged_in = True
-                        st.session_state.current_user = otp_user
-                        st.session_state.generated_otp = None 
-                        controller.set('logged_in_user', otp_user, max_age=86400)
-                        st.rerun()
-                    else:
-                        st.error("Invalid or expired OTP.")
 
 # ==========================================
 # 10. MAIN APPLICATION ROUTER
