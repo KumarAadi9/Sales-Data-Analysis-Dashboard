@@ -289,6 +289,11 @@ def apply_theme():
     #MainMenu, footer, .stDeployButton {{ display: none; }}
     .block-container {{ padding-top: 2rem !important; padding-bottom: 3rem !important; max-width: 1400px !important; }}
     
+    /* 12. LOADING SPINNER FIX */
+    [data-testid="stSpinner"] * {{
+        color: {t['text_primary']} !important;
+        stroke: {t['primary']} !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -687,12 +692,26 @@ def render_forecasting(df):
         ))
         
         fig.update_layout(
+            template=t['plotly_template'], 
             height=450, plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=20, r=50, t=60, b=80), font=dict(color=t['text_secondary']), 
-            legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5),
-            xaxis=dict(showgrid=False, showline=True, linecolor=t['border'], linewidth=1, color=t['text_secondary']),
-            yaxis=dict(showgrid=True, gridcolor=t['border'], showline=True, linecolor=t['border'], linewidth=1, color=t['text_secondary'])
+            
+            # 🛠️ THE FIX: Explicitly setting the font color inside the legend
+            legend=dict(
+                orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5,
+                font=dict(color=t['text_primary']) 
+            ),
+            
+            xaxis=dict(
+                showgrid=False, showline=True, linecolor=t['border'], linewidth=1, 
+                color=t['text_secondary'], tickfont=dict(color=t['text_secondary']) 
+            ),
+            yaxis=dict(
+                showgrid=True, gridcolor=t['border'], showline=True, linecolor=t['border'], linewidth=1, 
+                color=t['text_secondary'], tickfont=dict(color=t['text_secondary']) 
+            )
         )
+
         st.plotly_chart(fig, use_container_width=True)
         
         future_val = forecast.iloc[-1]['yhat']
