@@ -319,6 +319,39 @@ def load_data(uploaded_file):
         st.error(f"Error loading file: {e}")
         return None
 
+@st.cache_data
+def generate_demo_data():
+    """Generates 3 years of realistic synthetic sales data for testing."""
+    np.random.seed(42)
+    
+    # Generate 3 years of dates
+    dates = pd.date_range(start='2021-01-01', end='2023-12-31', freq='D').tolist() * 5
+    
+    regions = ['North America', 'EMEA', 'APAC', 'LATAM']
+    categories = ['SaaS Subscriptions', 'Enterprise Hardware', 'Cloud Storage', 'Consulting']
+    customers = [f'ENT-{i:04d}' for i in range(1, 150)]
+    
+    df = pd.DataFrame({
+        'order_id': [f'ORD-{i:05d}' for i in range(1, len(dates) + 1)],
+        'order_date': dates,
+        'region': np.random.choice(regions, len(dates), p=[0.45, 0.30, 0.15, 0.10]),
+        'category': np.random.choice(categories, len(dates)),
+        'customer_id': np.random.choice(customers, len(dates)),
+        'sales': np.random.normal(2500, 800, len(dates))
+    })
+    
+    # Inject seasonal trends and year-over-year growth so Prophet looks good
+    df['sales'] = df['sales'] + (df['order_date'].dt.month * 200) + ((df['order_date'].dt.year - 2021) * 1500)
+    
+    # Inject a couple of massive anomalies for Scikit-Learn to catch
+    anomaly_indices = np.random.choice(df.index, size=10, replace=False)
+    df.loc[anomaly_indices, 'sales'] = df.loc[anomaly_indices, 'sales'] * np.random.uniform(4, 8, size=10)
+    
+    df['sales'] = df['sales'].clip(lower=100).round(2)
+    df['profit'] = (df['sales'] * np.random.uniform(0.15, 0.45, len(dates))).round(2)
+    
+    return df
+
 # ==========================================
 # 3. SIDEBAR CONTROLS & FILTERS
 # ==========================================
@@ -1111,18 +1144,28 @@ def main():
     st.sidebar.title("📂 Data Upload")
     uploaded_file = st.sidebar.file_uploader("Upload CSV or Excel", type=["csv", "xlsx", "xls"])
     
-    if uploaded_file is None:
+    # Initialize demo state if it doesn't exist
+    if 'use_demo' not in st.session_state:
+        st.session_state.use_demo = False
+
+    # If user uploads a real file, instantly turn off demo mode
+    if uploaded_file is not None:
+        st.session_state.use_demo = False
+
+    # ROUTE 1: SHOW LANDING PAGE (No file, No Demo)
+    if uploaded_file is None and not st.session_state.use_demo:
         st.sidebar.markdown("---")
         
-        # 2. QUICK START DEMO
+        # 1. QUICK START DEMO
         st.sidebar.title("🚀 Quick Start")
         st.sidebar.markdown("<p style='font-size: 0.85rem; color: #94a3b8;'>Don't have a dataset ready? Test the engine with our dummy data.</p>", unsafe_allow_html=True)
         if st.sidebar.button("Load Enterprise Demo Data", use_container_width=True):
-            st.toast("Demo data loading feature coming soon!") # You can wire this up to a real CSV later!
+            st.session_state.use_demo = True
+            st.rerun() 
             
         st.sidebar.markdown("---")
         
-        # 3. SYSTEM HEALTH
+        # 2. SYSTEM HEALTH
         st.sidebar.title("📡 System Status")
         st.sidebar.markdown("""
         <div style="font-size: 0.9rem; color: #a1a1aa;">
@@ -1134,7 +1177,7 @@ def main():
         
         st.sidebar.markdown("---")
         
-        # 4. UPLOAD GUIDELINES
+        # 3. UPLOAD GUIDELINES
         with st.sidebar.expander("📊 CSV Formatting Guide"):
             st.markdown("""
             <div style="font-size: 0.85rem; color: #a1a1aa;">
@@ -1147,7 +1190,7 @@ def main():
             • <code>customer_id</code> (Text/Numbers)
             </div>
             """, unsafe_allow_html=True)
-    if uploaded_file is None:
+
         # ==========================================
         # 🚀 PREMIUM VERCEL/STRIPE-STYLE LANDING PAGE
         # ==========================================
@@ -1169,29 +1212,9 @@ backdrop-filter: blur(20px) !important;
 border-right: 1px solid rgba(255,255,255,0.05) !important;
 }
 [data-testid="stSidebarUserContent"] { padding-top: 3rem; }
-.sidebar-profile {
-width: 60px; height: 60px; border-radius: 50%;
-background: linear-gradient(135deg, #00F0FF, #FF007A);
-padding: 2px; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
-}
-.sidebar-profile-inner {
-width: 100%; height: 100%; background-color: #0a0a0f; border-radius: 50%;
-display: flex; align-items: center; justify-content: center;
-color: white; font-weight: bold; font-family: 'Space Grotesk';
-}
 .hero-wrapper {
 text-align: center; padding: 4rem 1rem 3rem 1rem;
 animation: fadeSlideUp 1s cubic-bezier(0.16, 1, 0.3, 1); font-family: 'Inter', sans-serif;
-}
-.trust-badge {
-display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px;
-background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
-border-radius: 50px; font-size: 0.85rem; color: #94a3b8; margin-bottom: 2rem;
-backdrop-filter: blur(10px); font-weight: 500; letter-spacing: 0.5px;
-}
-.trust-badge span {
-display: block; width: 6px; height: 6px; border-radius: 50%; background-color: #00F0FF;
-box-shadow: 0 0 10px #00F0FF; animation: pulse 2s infinite;
 }
 .hero-title {
 font-family: 'Space Grotesk', sans-serif; font-size: clamp(3rem, 5vw, 4.5rem);
@@ -1218,37 +1241,27 @@ backdrop-filter: blur(20px);
 -webkit-backdrop-filter: blur(20px);
 }
 .about-platform-box h3 {
-font-family: 'Space Grotesk', sans-serif;
-color: #f8fafc;
-margin-top: 0;
-margin-bottom: 1rem;
-font-size: 1.5rem;
+font-family: 'Space Grotesk', sans-serif; color: #f8fafc; margin-top: 0; margin-bottom: 1rem; font-size: 1.5rem;
 }
 .about-platform-box p {
-color: #94a3b8;
-font-size: 1.05rem;
-line-height: 1.7;
-margin: 0;
+color: #94a3b8; font-size: 1.05rem; line-height: 1.7; margin: 0;
 }
 .feature-grid {
 display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; text-align: left; margin-bottom: 3rem;
 }
 .feature-card {
-background: rgba(15, 15, 20, 0.4); border: 1px solid rgba(255, 255, 255, 0.04);
-border-radius: 16px; padding: 2rem; transition: all 0.3s ease;
+background: rgba(15, 15, 20, 0.4); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 16px; padding: 2rem; transition: all 0.3s ease;
 }
 .feature-card:hover {
 background: rgba(30, 30, 40, 0.4); border-color: rgba(255, 255, 255, 0.1); transform: scale(1.02);
 }
 .feature-icon {
 font-size: 1.5rem; margin-bottom: 1rem; display: inline-flex; align-items: center; justify-content: center;
-width: 48px; height: 48px; background: rgba(255, 255, 255, 0.03);
-border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px;
+width: 48px; height: 48px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px;
 }
 .feature-title { font-family: 'Space Grotesk'; font-size: 1.25rem; font-weight: 600; color: #f1f5f9; margin-bottom: 0.5rem; }
 .feature-desc { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; }
 @keyframes fadeSlideUp { 0% { opacity: 0; transform: translateY(30px); } 100% { opacity: 1; transform: translateY(0); } }
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(0, 240, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0); } }
 @keyframes gradientMove { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
 </style>
 <div class="hero-wrapper">
@@ -1258,35 +1271,17 @@ Next-Gen <span class="text-glow">Sales Intelligence</span>
 <p class="hero-subtitle">
 Upload your raw datasets and let autonomous AI uncover hidden revenue streams, predict market trends, and instantly generate enterprise-grade reports.
 </p>
-
 <div class="about-platform-box" style="animation: fadeSlideUp 0.8s ease 0.1s both;">
 <h3>About This Platform</h3>
 <p>
 This dashboard is a fully integrated data science environment built to transform raw CSV and Excel files into actionable business intelligence. It securely processes your data locally, utilizing advanced machine learning pipelines like <strong>Facebook Prophet</strong> for time-series forecasting and <strong>Scikit-Learn Isolation Forests</strong> for real-time anomaly detection. Integrated with Google's <strong>Gemini LLM</strong>, it serves as an autonomous data analyst, capable of generating executive summaries and answering natural language queries about your datasets instantly.
 </p>
 </div>
-
 <div class="feature-grid">
-<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.3s both;">
-<div class="feature-icon">🧠</div>
-<div class="feature-title">Generative AI Insights</div>
-<div class="feature-desc">Google Gemini analyzes your raw CSVs in real-time to output actionable, C-suite level executive summaries.</div>
-</div>
-<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.4s both;">
-<div class="feature-icon">📈</div>
-<div class="feature-title">Prophet Forecasting</div>
-<div class="feature-desc">Advanced machine learning detects weekly seasonality to project highly accurate 30-day revenue models.</div>
-</div>
-<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.5s both;">
-<div class="feature-icon">⚠️</div>
-<div class="feature-title">Anomaly Detection</div>
-<div class="feature-desc">Scikit-Learn's Isolation Forests monitor your data continuously to flag catastrophic drops or suspicious spikes.</div>
-</div>
-<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.6s both;">
-<div class="feature-icon">🎯</div>
-<div class="feature-title">Customer RFM Risk</div>
-<div class="feature-desc">Automatically categorizes users by Recency, Frequency, and Monetary value to instantly identify churn risk.</div>
-</div>
+<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.3s both;"><div class="feature-icon">🧠</div><div class="feature-title">Generative AI Insights</div><div class="feature-desc">Google Gemini analyzes your raw CSVs in real-time to output actionable, C-suite level executive summaries.</div></div>
+<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.4s both;"><div class="feature-icon">📈</div><div class="feature-title">Prophet Forecasting</div><div class="feature-desc">Advanced machine learning detects weekly seasonality to project highly accurate 30-day revenue models.</div></div>
+<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.5s both;"><div class="feature-icon">⚠️</div><div class="feature-title">Anomaly Detection</div><div class="feature-desc">Scikit-Learn's Isolation Forests monitor your data continuously to flag catastrophic drops or suspicious spikes.</div></div>
+<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.6s both;"><div class="feature-icon">🎯</div><div class="feature-title">Customer RFM Risk</div><div class="feature-desc">Automatically categorizes users by Recency, Frequency, and Monetary value to instantly identify churn risk.</div></div>
 </div>
 <p style="color: #64748b; font-size: 0.9rem; margin-top: 2rem;">
 👈 <strong>Awaiting Data Input.</strong> Drop your CSV or Excel file into the secure zone on the left to initialize the engine.
@@ -1294,8 +1289,19 @@ This dashboard is a fully integrated data science environment built to transform
 </div>
 """, unsafe_allow_html=True)
 
+    # ROUTE 2: DASHBOARD MODE (Either Demo Data or Uploaded Data)
     else:
-        df = load_data(uploaded_file)
+        if st.session_state.use_demo:
+            df = generate_demo_data()
+            st.sidebar.markdown("---")
+            st.sidebar.info("🧪 **Demo Mode Active**")
+            if st.sidebar.button("Exit Demo Mode", use_container_width=True):
+                st.session_state.use_demo = False
+                st.rerun()
+        else:
+            df = load_data(uploaded_file)
+
+    
         # ... your existing rendering code continues down here!
         
         if df is not None:
