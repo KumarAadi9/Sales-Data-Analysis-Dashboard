@@ -6,6 +6,7 @@ import io
 import json
 import os
 import hashlib
+import sqlite3
 import random
 import smtplib
 from email.mime.text import MIMEText
@@ -322,6 +323,9 @@ def render_sidebar(df):
     selected_theme = st.sidebar.selectbox("Select Theme", options=list(THEMES.keys()), index=list(THEMES.keys()).index(st.session_state.theme))
     if selected_theme != st.session_state.theme:
         st.session_state.theme = selected_theme
+        # Save it to the database so it remembers for next time!
+        if 'logged_in' in st.session_state and st.session_state.logged_in:
+            update_user_theme(st.session_state.current_user, selected_theme)
         st.rerun()
         
     st.sidebar.markdown("---")
@@ -421,6 +425,40 @@ def render_dashboard(df):
             st.plotly_chart(fig_cat, use_container_width=True)
             
     row2_col1, row2_col2 = st.columns(2, gap="large")
+    
+    st.markdown("---")
+    st.subheader("⚠️ AI Anomaly Detection")
+    if "order_date" in df.columns and "sales" in df.columns:
+        from sklearn.ensemble import IsolationForest
+        
+        # Prepare daily data
+        daily_anom = df.groupby(df['order_date'].dt.date)['sales'].sum().reset_index()
+        daily_anom['order_date'] = pd.to_datetime(daily_anom['order_date'])
+        
+        if len(daily_anom) > 20:
+            # Train Isolation Forest
+            iso = IsolationForest(contamination=0.05, random_state=42)
+            daily_anom['anomaly'] = iso.fit_predict(daily_anom[['sales']])
+            
+            # Filter the anomalies (-1 means anomalous)
+            anomalies = daily_anom[daily_anom['anomaly'] == -1]
+            
+            if not anomalies.empty:
+                st.warning(f"**System Alert:** Detected {len(anomalies)} irregular sales days that deviate from normal patterns.")
+                
+                # Plot anomalies over the normal line
+                fig_anom = px.line(daily_anom, x='order_date', y='sales', template=t['plotly_template'])
+                fig_anom.update_traces(line_color=t['text_secondary'], opacity=0.5)
+                
+                fig_anom.add_scatter(x=anomalies['order_date'], y=anomalies['sales'], 
+                                     mode='markers', marker=dict(color='#ef4444', size=10, symbol='x'), 
+                                     name='Anomalies')
+                
+                fig_anom.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=20),
+                                       plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_anom, use_container_width=True)
+            else:
+                st.success("System Status: Normal. No extreme sales anomalies detected in the selected date range.")
     
     with row2_col1:
         if "region" in df.columns and "sales" in df.columns:
@@ -598,73 +636,67 @@ def render_insights(df):
                 st.error(f"Failed to generate insights. Error details: {e}")
 
 # ==========================================
-# 7. FORECASTING & MACHINE LEARNING
+# 7. FORECASTING & MACHINE LEARNING (PROPHET)
 # ==========================================
 def render_forecasting(df):
-    st.header("📈 Sales Forecasting (30-Day Projection)")
-    st.markdown("Utilizes historical linear trends to project future performance.")
+    st.header("📈 Predictive Sales Forecasting")
+    st.markdown("Utilizing Prophet time-series modeling to project 30-day performance based on weekly seasonality and historical trends.")
     
     if "order_date" not in df.columns or "sales" not in df.columns:
         st.warning("Forecasting requires 'order_date' and 'sales' columns.")
         return
         
+    # Prepare data for Prophet (requires columns named 'ds' and 'y')
     daily_sales = df.groupby(df['order_date'].dt.date)['sales'].sum().reset_index()
-    daily_sales['order_date'] = pd.to_datetime(daily_sales['order_date'])
-    daily_sales = daily_sales.sort_values('order_date')
+    daily_sales.columns = ['ds', 'y']
+    daily_sales['ds'] = pd.to_datetime(daily_sales['ds'])
+    daily_sales = daily_sales.sort_values('ds')
     
     if len(daily_sales) < 30:
-        st.warning("Not enough historical data for a reliable forecast (minimum 30 days required).")
+        st.warning("Not enough historical data for a reliable ML forecast (minimum 30 days required).")
         return
         
-    daily_sales['30-Day MA'] = daily_sales['sales'].rolling(window=30).mean()
-    
-    x = np.arange(len(daily_sales))
-    y = daily_sales['sales'].fillna(0).values
-    
-    if len(x) > 1:
-        z = np.polyfit(x, y, 1)
-        p = np.poly1d(z)
+    with st.spinner("Training Prophet time-series model..."):
+        from prophet import Prophet
         
-        future_x = np.arange(len(daily_sales), len(daily_sales) + 30)
-        future_y = p(future_x)
+        # Initialize and train the model
+        m = Prophet(yearly_seasonality=False, daily_seasonality=False)
+        m.fit(daily_sales)
         
-        last_date = daily_sales['order_date'].max()
-        future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 31)]
-        future_df = pd.DataFrame({'order_date': future_dates, 'Forecasted Sales': future_y})
+        # Predict the next 30 days
+        future = m.make_future_dataframe(periods=30)
+        forecast = m.predict(future)
         
+        # Setup the plot
         import plotly.graph_objects as go
         fig = go.Figure()
-        
         t = THEMES[st.session_state.theme]
-        fig.add_trace(go.Scatter(x=daily_sales['order_date'], y=daily_sales['sales'], name='Actual Sales', line=dict(color=t['primary'], width=1), opacity=0.4))
-        fig.add_trace(go.Scatter(x=daily_sales['order_date'], y=daily_sales['30-Day MA'], name='30-Day Trend', line=dict(color=t['secondary'], width=3)))
-        fig.add_trace(go.Scatter(x=future_df['order_date'], y=future_df['Forecasted Sales'], name='30-Day Forecast (Linear)', line=dict(color=t['text_primary'], width=3, dash='dot')))
+        
+        # Historical Data
+        fig.add_trace(go.Scatter(x=daily_sales['ds'], y=daily_sales['y'], mode='markers', name='Actual Sales', marker=dict(color=t['primary'], size=6, opacity=0.5)))
+        
+        # Prophet Trend Line
+        fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], mode='lines', name='Prophet Forecast', line=dict(color=t['secondary'], width=3)))
+        
+        # Confidence Intervals
+        fig.add_trace(go.Scatter(
+            x=pd.concat([forecast['ds'], forecast['ds'][::-1]]),
+            y=pd.concat([forecast['yhat_upper'], forecast['yhat_lower'][::-1]]),
+            fill='toself', fillcolor=t['primary'], opacity=0.1,
+            line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", showlegend=False, name='Confidence Interval'
+        ))
         
         fig.update_layout(
-            height=450,
-            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=20, r=50, t=60, b=80), 
-            font=dict(color=t['text_secondary']), 
-            legend=dict(
-                orientation="h", 
-                yanchor="bottom", 
-                y=1.05, 
-                xanchor="center", 
-                x=0.5
-            ),
-            xaxis=dict(
-                showgrid=False, 
-                showline=True, linecolor=t['border'], linewidth=1,
-                color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])
-            ),
-            yaxis=dict(
-                showgrid=True, gridcolor=t['border'], 
-                showline=True, linecolor=t['border'], linewidth=1,
-                color=t['text_secondary'], tickfont=dict(color=t['text_secondary'])
-            )
+            height=450, plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=20, r=50, t=60, b=80), font=dict(color=t['text_secondary']), 
+            legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5),
+            xaxis=dict(showgrid=False, showline=True, linecolor=t['border'], linewidth=1, color=t['text_secondary']),
+            yaxis=dict(showgrid=True, gridcolor=t['border'], showline=True, linecolor=t['border'], linewidth=1, color=t['text_secondary'])
         )
         st.plotly_chart(fig, use_container_width=True)
-        st.info(f"**Projection Insight**: Based on historical linear trends, sales are projected to trend towards **${future_y[-1]:,.2f}** per day by the end of the next 30-day period.")
+        
+        future_val = forecast.iloc[-1]['yhat']
+        st.info(f"**ML Projection Insight**: Based on detected seasonal patterns and historical trends, the model projects sales to normalize around **${future_val:,.2f}** per day by the end of the next 30-day cycle.")
 
 # ==========================================
 # 8. CUSTOMER RISK & RFM ANALYSIS
@@ -820,38 +852,68 @@ def render_chat_data(df):
 # ==========================================
 # 9.5. ADVANCED AUTHENTICATION SYSTEM
 # ==========================================
+def init_db():
+    conn = sqlite3.connect('dashboard_enterprise.db')
+    c = conn.cursor()
+    # Create user table with a dedicated column for their saved theme
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            password TEXT NOT NULL,
+            saved_theme TEXT DEFAULT 'Neon Cyberpunk'
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Initialize the database when the app runs
+init_db()
+
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def load_users():
-    if os.path.exists('users.json'):
-        with open('users.json', 'r') as f:
-            return json.load(f)
-    return {}
-
 def save_user(email_or_phone, password):
-    users = load_users()
-    if email_or_phone in users:
-        return False
-    users[email_or_phone] = hash_password(password)
-    with open('users.json', 'w') as f:
-        json.dump(users, f)
-    return True
+    try:
+        conn = sqlite3.connect('dashboard_enterprise.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO users (email, password) VALUES (?, ?)", 
+                  (email_or_phone, hash_password(password)))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        return False # User already exists
 
 def authenticate(email_or_phone, password):
-    users = load_users()
-    if email_or_phone in users and users[email_or_phone] == hash_password(password):
+    conn = sqlite3.connect('dashboard_enterprise.db')
+    c = conn.cursor()
+    c.execute("SELECT password, saved_theme FROM users WHERE email=?", (email_or_phone,))
+    result = c.fetchone()
+    conn.close()
+    
+    if result and result[0] == hash_password(password):
+        # Load their saved theme into the session state!
+        st.session_state.theme = result[1] 
         return True
     return False
 
 def reset_password(email_or_phone, new_password):
-    users = load_users()
-    if email_or_phone in users:
-        users[email_or_phone] = hash_password(new_password)
-        with open('users.json', 'w') as f:
-            json.dump(users, f)
-        return True
-    return False
+    conn = sqlite3.connect('dashboard_enterprise.db')
+    c = conn.cursor()
+    c.execute("UPDATE users SET password=? WHERE email=?", 
+              (hash_password(new_password), email_or_phone))
+    rows_affected = c.rowcount
+    conn.commit()
+    conn.close()
+    return rows_affected > 0
+
+def update_user_theme(email_or_phone, new_theme):
+    if email_or_phone:
+        conn = sqlite3.connect('dashboard_enterprise.db')
+        c = conn.cursor()
+        c.execute("UPDATE users SET saved_theme=? WHERE email=?", (new_theme, email_or_phone))
+        conn.commit()
+        conn.close()
 
 def send_reset_email(target_email, otp_code):
     # ⚠️ IMPORTANT: Replace these with your actual email details
