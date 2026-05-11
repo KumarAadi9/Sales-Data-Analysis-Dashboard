@@ -994,8 +994,14 @@ def render_login(controller):
                 if st.session_state.reset_step == 'request_code':
                     reset_user = st.text_input("Enter your registered Email", key="reset_user_input")
                     if st.button("Send Confirmation Code", use_container_width=True):
-                        users = load_users()
-                        if reset_user in users:
+                        # Query SQLite to check if user exists
+                        conn = sqlite3.connect('dashboard_enterprise.db')
+                        c = conn.cursor()
+                        c.execute("SELECT email FROM users WHERE email=?", (reset_user,))
+                        user_exists = c.fetchone()
+                        conn.close()
+                        
+                        if user_exists:
                             with st.spinner("Sending email..."):
                                 generated_otp = str(random.randint(100000, 999999))
                                 
@@ -1106,22 +1112,191 @@ def main():
     uploaded_file = st.sidebar.file_uploader("Upload CSV or Excel", type=["csv", "xlsx", "xls"])
     
     if uploaded_file is None:
-        st.title("Welcome to the AI Analytics Dashboard ✨")
-        st.info("👈 Please upload your Sales Data (CSV or Excel) from the sidebar to begin.")
+        st.sidebar.markdown("---")
         
-        features_text = (
-            "### Features of this Dashboard:\n"
-            "* **CSV and Excel Support**: Seamlessly process standard spreadsheet formats.\n"
-            "* **Interactive Global Filters**: Filter by Date, Region, and Category from the sidebar.\n"
-            "* **Modern UI & Responsive Design**: Adapts flawlessly to Light and Dark modes.\n"
-            "* **Executive KPI Cards**: Track Sales, Profit, and Orders at a glance.\n"
-            "* **Advanced Visualizations**: Top products, regional analysis, and monthly trends using Plotly.\n"
-            "* **AI-Generated Insights**: Automated business recommendations to drive decision making."
-        )
-        st.markdown(features_text)
+        # 2. QUICK START DEMO
+        st.sidebar.title("🚀 Quick Start")
+        st.sidebar.markdown("<p style='font-size: 0.85rem; color: #94a3b8;'>Don't have a dataset ready? Test the engine with our dummy data.</p>", unsafe_allow_html=True)
+        if st.sidebar.button("Load Enterprise Demo Data", use_container_width=True):
+            st.toast("Demo data loading feature coming soon!") # You can wire this up to a real CSV later!
+            
+        st.sidebar.markdown("---")
         
+        # 3. SYSTEM HEALTH
+        st.sidebar.title("📡 System Status")
+        st.sidebar.markdown("""
+        <div style="font-size: 0.9rem; color: #a1a1aa;">
+            <span style="color: #10b981;">●</span> Secure SQLite Auth<br>
+            <span style="color: #10b981;">●</span> Prophet ML Engine<br>
+            <span style="color: #10b981;">●</span> Gemini LLM Ready
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.sidebar.markdown("---")
+        
+        # 4. UPLOAD GUIDELINES
+        with st.sidebar.expander("📊 CSV Formatting Guide"):
+            st.markdown("""
+            <div style="font-size: 0.85rem; color: #a1a1aa;">
+            For optimal AI analysis, include these columns:<br><br>
+            • <code>order_date</code> (Dates)<br>
+            • <code>sales</code> (Numbers)<br>
+            • <code>profit</code> (Numbers)<br>
+            • <code>region</code> (Text)<br>
+            • <code>category</code> (Text)<br>
+            • <code>customer_id</code> (Text/Numbers)
+            </div>
+            """, unsafe_allow_html=True)
+    if uploaded_file is None:
+        # ==========================================
+        # 🚀 PREMIUM VERCEL/STRIPE-STYLE LANDING PAGE
+        # ==========================================
+        st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap');
+.stApp {
+background-color: #030305 !important;
+background-image: radial-gradient(circle at 15% 50%, rgba(87, 115, 255, 0.12), transparent 25%), radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.12), transparent 25%), linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
+background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px !important;
+background-position: 0 0, 0 0, -1px -1px, -1px -1px !important;
+}
+[data-testid="stHeader"] { background: transparent !important; }
+.block-container { padding-top: 1rem !important; max-width: 1200px !important; }
+[data-testid="stSidebar"] {
+background: rgba(10, 10, 15, 0.6) !important;
+backdrop-filter: blur(20px) !important;
+-webkit-backdrop-filter: blur(20px) !important;
+border-right: 1px solid rgba(255,255,255,0.05) !important;
+}
+[data-testid="stSidebarUserContent"] { padding-top: 3rem; }
+.sidebar-profile {
+width: 60px; height: 60px; border-radius: 50%;
+background: linear-gradient(135deg, #00F0FF, #FF007A);
+padding: 2px; margin-bottom: 1rem; box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+}
+.sidebar-profile-inner {
+width: 100%; height: 100%; background-color: #0a0a0f; border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+color: white; font-weight: bold; font-family: 'Space Grotesk';
+}
+.hero-wrapper {
+text-align: center; padding: 4rem 1rem 3rem 1rem;
+animation: fadeSlideUp 1s cubic-bezier(0.16, 1, 0.3, 1); font-family: 'Inter', sans-serif;
+}
+.trust-badge {
+display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px;
+background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+border-radius: 50px; font-size: 0.85rem; color: #94a3b8; margin-bottom: 2rem;
+backdrop-filter: blur(10px); font-weight: 500; letter-spacing: 0.5px;
+}
+.trust-badge span {
+display: block; width: 6px; height: 6px; border-radius: 50%; background-color: #00F0FF;
+box-shadow: 0 0 10px #00F0FF; animation: pulse 2s infinite;
+}
+.hero-title {
+font-family: 'Space Grotesk', sans-serif; font-size: clamp(3rem, 5vw, 4.5rem);
+font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; color: #ffffff; letter-spacing: -1px;
+}
+.text-glow {
+background: linear-gradient(to right, #00F0FF, #5773FF, #FF007A);
+-webkit-background-clip: text; -webkit-text-fill-color: transparent;
+background-size: 200% auto; animation: gradientMove 5s linear infinite;
+}
+.hero-subtitle {
+font-size: 1.25rem; color: #94a3b8; max-width: 600px; margin: 0 auto 2rem auto; line-height: 1.6;
+}
+.about-platform-box {
+background: rgba(255, 255, 255, 0.02);
+border: 1px solid rgba(255, 255, 255, 0.05);
+border-left: 4px solid #00F0FF;
+border-radius: 12px;
+padding: 2rem;
+max-width: 800px;
+margin: 0 auto 4rem auto;
+text-align: left;
+backdrop-filter: blur(20px);
+-webkit-backdrop-filter: blur(20px);
+}
+.about-platform-box h3 {
+font-family: 'Space Grotesk', sans-serif;
+color: #f8fafc;
+margin-top: 0;
+margin-bottom: 1rem;
+font-size: 1.5rem;
+}
+.about-platform-box p {
+color: #94a3b8;
+font-size: 1.05rem;
+line-height: 1.7;
+margin: 0;
+}
+.feature-grid {
+display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; text-align: left; margin-bottom: 3rem;
+}
+.feature-card {
+background: rgba(15, 15, 20, 0.4); border: 1px solid rgba(255, 255, 255, 0.04);
+border-radius: 16px; padding: 2rem; transition: all 0.3s ease;
+}
+.feature-card:hover {
+background: rgba(30, 30, 40, 0.4); border-color: rgba(255, 255, 255, 0.1); transform: scale(1.02);
+}
+.feature-icon {
+font-size: 1.5rem; margin-bottom: 1rem; display: inline-flex; align-items: center; justify-content: center;
+width: 48px; height: 48px; background: rgba(255, 255, 255, 0.03);
+border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px;
+}
+.feature-title { font-family: 'Space Grotesk'; font-size: 1.25rem; font-weight: 600; color: #f1f5f9; margin-bottom: 0.5rem; }
+.feature-desc { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; }
+@keyframes fadeSlideUp { 0% { opacity: 0; transform: translateY(30px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(0, 240, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0); } }
+@keyframes gradientMove { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
+</style>
+<div class="hero-wrapper">
+<h1 class="hero-title">
+Next-Gen <span class="text-glow">Sales Intelligence</span>
+</h1>
+<p class="hero-subtitle">
+Upload your raw datasets and let autonomous AI uncover hidden revenue streams, predict market trends, and instantly generate enterprise-grade reports.
+</p>
+
+<div class="about-platform-box" style="animation: fadeSlideUp 0.8s ease 0.1s both;">
+<h3>About This Platform</h3>
+<p>
+This dashboard is a fully integrated data science environment built to transform raw CSV and Excel files into actionable business intelligence. It securely processes your data locally, utilizing advanced machine learning pipelines like <strong>Facebook Prophet</strong> for time-series forecasting and <strong>Scikit-Learn Isolation Forests</strong> for real-time anomaly detection. Integrated with Google's <strong>Gemini LLM</strong>, it serves as an autonomous data analyst, capable of generating executive summaries and answering natural language queries about your datasets instantly.
+</p>
+</div>
+
+<div class="feature-grid">
+<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.3s both;">
+<div class="feature-icon">🧠</div>
+<div class="feature-title">Generative AI Insights</div>
+<div class="feature-desc">Google Gemini analyzes your raw CSVs in real-time to output actionable, C-suite level executive summaries.</div>
+</div>
+<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.4s both;">
+<div class="feature-icon">📈</div>
+<div class="feature-title">Prophet Forecasting</div>
+<div class="feature-desc">Advanced machine learning detects weekly seasonality to project highly accurate 30-day revenue models.</div>
+</div>
+<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.5s both;">
+<div class="feature-icon">⚠️</div>
+<div class="feature-title">Anomaly Detection</div>
+<div class="feature-desc">Scikit-Learn's Isolation Forests monitor your data continuously to flag catastrophic drops or suspicious spikes.</div>
+</div>
+<div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.6s both;">
+<div class="feature-icon">🎯</div>
+<div class="feature-title">Customer RFM Risk</div>
+<div class="feature-desc">Automatically categorizes users by Recency, Frequency, and Monetary value to instantly identify churn risk.</div>
+</div>
+</div>
+<p style="color: #64748b; font-size: 0.9rem; margin-top: 2rem;">
+👈 <strong>Awaiting Data Input.</strong> Drop your CSV or Excel file into the secure zone on the left to initialize the engine.
+</p>
+</div>
+""", unsafe_allow_html=True)
+
     else:
         df = load_data(uploaded_file)
+        # ... your existing rendering code continues down here!
         
         if df is not None:
             st.sidebar.markdown("---")
