@@ -326,10 +326,6 @@ def load_data(uploaded_file):
         st.error(f"Error loading file: {e}")
         return None
             
-        return df
-    except Exception as e:
-        st.error(f"Error loading file: {e}")
-        return None
 
 @st.cache_data
 def generate_demo_data():
@@ -1154,8 +1150,16 @@ def main():
     st.sidebar.markdown("---")
     
     st.sidebar.title("📂 Data Upload")
-    uploaded_file = st.sidebar.file_uploader("Upload Data File", type=["csv", "xlsx", "xls", "json", "parquet"])
     
+    # We remove the negative margin and use Streamlit's built-in label collapsing for a clean UI
+    st.sidebar.markdown("**Upload Data File**")
+    st.sidebar.markdown("<p style='font-size: 0.85rem; color: #9CA3AF;'>Supported: CSV, XLSX, XLS, JSON, PARQUET</p>", unsafe_allow_html=True)
+    
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload", 
+        type=["csv", "xlsx", "xls", "json", "parquet"], 
+        label_visibility="collapsed"
+    )
     # Initialize demo state if it doesn't exist
     if 'use_demo' not in st.session_state:
         st.session_state.use_demo = False
@@ -1296,8 +1300,7 @@ This dashboard is a fully integrated data science environment built to transform
 <div class="feature-card" style="animation: fadeSlideUp 0.8s ease 0.6s both;"><div class="feature-icon">🎯</div><div class="feature-title">Customer RFM Risk</div><div class="feature-desc">Automatically categorizes users by Recency, Frequency, and Monetary value to instantly identify churn risk.</div></div>
 </div>
 <p style="color: #64748b; font-size: 0.9rem; margin-top: 2rem;">
-👈 <strong>Awaiting Data Input.</strong> Drop your CSV or Excel file into the secure zone on the left to initialize the engine.
-</p>
+👈 <strong>Awaiting Data Input.</strong> Drop your dataset (CSV, Excel, JSON, or Parquet) into the secure zone on the left to initialize the engine.</p>
 </div>
 """, unsafe_allow_html=True)
 
