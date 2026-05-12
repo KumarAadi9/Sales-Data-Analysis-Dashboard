@@ -250,14 +250,40 @@ def apply_theme():
         box-shadow: 0 2px 10px {t['primary']}40 !important;
     }}
 
-    /* 9. ANIMATED TABS */
-    .stTabs [data-baseweb="tab-list"] {{ gap: 2rem; background-color: transparent; border-bottom: 2px solid {t['border']}; }}
-    .stTabs [data-baseweb="tab"] {{ 
-        height: 3rem; background-color: transparent; 
-        color: {t['text_secondary']} !important; font-weight: 600; font-size: 1.1rem; 
-        padding-bottom: 0; transition: color 0.3s ease;
+    /* 9. ANIMATED & TACTILE TABS */
+    .stTabs [data-baseweb="tab-list"] {{ 
+        gap: 0.5rem; 
+        background-color: transparent; 
+        border-bottom: 2px solid {t['border']}; 
+        padding-top: 10px; /* Creates invisible headroom so the tabs don't get cut off when they lift */
     }}
-    .stTabs [aria-selected="true"] {{ color: {t['primary']} !important; border-bottom: 3px solid {t['primary']} !important; }}
+    
+    .stTabs [data-baseweb="tab"] {{ 
+        height: 3.2rem; 
+        background-color: transparent; 
+        color: {t['text_secondary']} !important; 
+        font-weight: 600; 
+        font-size: 1.1rem; 
+        padding: 0 1.5rem;
+        border-radius: 10px 10px 0 0; /* Rounds the top corners */
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Smooth, springy animation */
+    }}
+    
+    /* THE HOVER 'POP-UP' EFFECT */
+    .stTabs [data-baseweb="tab"]:hover {{
+        color: {t['text_primary']} !important;
+        background-color: {t['card_bg']} !important;
+        transform: translateY(-6px); /* physically lifts the tab up */
+        box-shadow: 0 -6px 15px rgba(0,0,0,0.08); /* Adds a shadow underneath the lift */
+    }}
+    
+    /* The Currently Selected Tab */
+    .stTabs [aria-selected="true"] {{ 
+        color: {t['primary']} !important; 
+        border-bottom: 3px solid {t['primary']} !important; 
+        background-color: transparent !important;
+    }}
+    
     .stTabs [data-baseweb="tab-highlight"] {{ display: none; }}
 
    /* 10. FILE UPLOADER FIXES */
