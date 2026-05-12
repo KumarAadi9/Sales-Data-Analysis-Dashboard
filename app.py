@@ -81,6 +81,12 @@ def apply_theme():
         background-color: {t['sidebar_bg']} !important;
         border-right: 1px solid {t['border']} !important;
     }}
+    
+    /* Pull the sidebar content higher up */
+    [data-testid="stSidebarUserContent"] {{
+        padding-top: 1rem !important; 
+    }}
+    
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {{
         color: {t['text_primary']} !important;
     }}
