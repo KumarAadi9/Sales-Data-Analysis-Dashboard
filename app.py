@@ -302,17 +302,29 @@ def apply_theme():
 # ==========================================
 @st.cache_data
 def load_data(uploaded_file):
-    # Loads CSV or Excel data and normalizes column names
+    # Loads CSV, Excel, JSON, or Parquet data and normalizes column names
     try:
         if uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(uploaded_file, encoding="latin1")
-        else:
+        elif uploaded_file.name.endswith(('.xlsx', '.xls')):
             df = pd.read_excel(uploaded_file)
+        elif uploaded_file.name.endswith('.json'):
+            df = pd.read_json(uploaded_file)
+        elif uploaded_file.name.endswith('.parquet'):
+            df = pd.read_parquet(uploaded_file)
+        else:
+            st.error("Unsupported file format.")
+            return None
             
         df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
         
         if "order_date" in df.columns:
             df["order_date"] = pd.to_datetime(df["order_date"], errors='coerce')
+            
+        return df
+    except Exception as e:
+        st.error(f"Error loading file: {e}")
+        return None
             
         return df
     except Exception as e:
@@ -1142,7 +1154,7 @@ def main():
     st.sidebar.markdown("---")
     
     st.sidebar.title("📂 Data Upload")
-    uploaded_file = st.sidebar.file_uploader("Upload CSV or Excel", type=["csv", "xlsx", "xls"])
+    uploaded_file = st.sidebar.file_uploader("Upload Data File", type=["csv", "xlsx", "xls", "json", "parquet"])
     
     # Initialize demo state if it doesn't exist
     if 'use_demo' not in st.session_state:
