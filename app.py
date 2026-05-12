@@ -425,13 +425,30 @@ def render_dashboard(df):
 
     st.markdown("### Key Performance Indicators")
     total_sales = df["sales"].sum() if "sales" in df.columns else 0
-    total_profit = df["profit"].sum() if "profit" in df.columns else 0
     total_orders = df["order_id"].nunique() if "order_id" in df.columns else len(df)
+    
+    # SMART MIDDLE KPI: Profit -> Avg Order Value -> Units Sold
+    if "profit" in df.columns:
+        mid_label = "Total Profit"
+        mid_val = f"${df['profit'].sum():,.2f}"
+    elif "sales" in df.columns and total_orders > 0:
+        mid_label = "Avg Order Value"
+        mid_val = f"${(total_sales / total_orders):,.2f}"
+    elif "quantity" in df.columns:
+        mid_label = "Total Units Sold"
+        mid_val = f"{int(df['quantity'].sum()):,}"
+    else:
+        mid_label = "Avg Value per Row"
+        mid_val = f"${(total_sales / len(df)) if len(df) > 0 else 0:,.2f}"
     
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Sales", f"${total_sales:,.2f}")
-    col2.metric("Total Profit", f"${total_profit:,.2f}")
+    col2.metric(mid_label, mid_val)
     col3.metric("Total Orders", f"{total_orders:,}")
+    
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    # ... Your chart code starts below this line (row1_col1, row1_col2 = st.columns...)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     
