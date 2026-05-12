@@ -807,18 +807,42 @@ def render_rfm_analysis(df):
     rfm['M'] = rfm['Total Spend ($)'].apply(fm_score, args=('Total Spend ($)',))
     
     at_risk = rfm[(rfm['R'] == 1) & (rfm['M'] >= 2)]
+    num_at_risk = len(at_risk)
+    total_customers = len(rfm)
     
     col1, col2 = st.columns(2, gap="large")
     with col1:
-        st.error(f"**Action Required**: You have **{len(at_risk)}** high-value customers who haven't purchased recently. Immediate retention campaign recommended.")
-        t = THEMES[st.session_state.theme]
-        rfm_display = at_risk.sort_values('Total Spend ($)', ascending=False).head(10)
-        styled_rfm = rfm_display.style.set_properties(**{
-            'background-color': t['card_bg'],
-            'color': t['text_primary'],
-            'border-color': t['border']
-        })
-        st.dataframe(styled_rfm, use_container_width=True)
+        if num_at_risk == 0:
+            st.success("✅ **System Status: Optimal**\n\nEverything looks good! You currently have **0** high-value customers at risk of churning. Your retention strategies are working perfectly.")
+        else:
+            # Calculate risk severity and revenue at risk
+            risk_pct = num_at_risk / total_customers if total_customers > 0 else 0
+            revenue_at_risk = at_risk['Total Spend ($)'].sum()
+            
+            if risk_pct < 0.05:
+                # Less than 5% of customers at risk
+                st.warning(f"🟡 **Low Risk Detected**\nYou have **{num_at_risk}** high-value customers showing early signs of churn. Total revenue at risk: **${revenue_at_risk:,.2f}**.")
+                st.markdown("**Action Plan:** Send a personalized 'We miss you' email with a small discount code to re-engage them before they drop off entirely.")
+            
+            elif risk_pct < 0.15:
+                # 5% to 15% of customers at risk
+                st.error(f"🟠 **Intermediate Risk Detected**\nYou have **{num_at_risk}** high-value customers at risk of churning. Total revenue at risk: **${revenue_at_risk:,.2f}**.")
+                st.markdown("**Action Plan:** Trigger an automated win-back campaign. Offer a loyalty bonus or an exclusive perk on their next order to incentivize an immediate purchase.")
+            
+            else:
+                # More than 15% of customers at risk
+                st.error(f"🔴 **High Risk Detected (CRITICAL)**\nYou have **{num_at_risk}** high-value customers on the verge of churning. Total revenue at risk: **${revenue_at_risk:,.2f}**.")
+                st.markdown("**Action Plan:** Immediate manual intervention required. Have an account manager contact these top accounts directly to gather feedback and offer a custom retention package.")
+            
+            # Display the data table only if there are actually at-risk customers
+            t = THEMES[st.session_state.theme]
+            rfm_display = at_risk.sort_values('Total Spend ($)', ascending=False).head(10)
+            styled_rfm = rfm_display.style.set_properties(**{
+                'background-color': t['card_bg'],
+                'color': t['text_primary'],
+                'border-color': t['border']
+            })
+            st.dataframe(styled_rfm, use_container_width=True)
         
     with col2:
         fig = px.scatter(rfm, x='Recency (Days)', y='Total Spend ($)', color='R', 
