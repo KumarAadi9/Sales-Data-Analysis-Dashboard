@@ -1,333 +1,18 @@
 import streamlit as st
 import pandas as pd
+from styles import THEMES, apply_theme
+from auth import save_user, authenticate, reset_password, update_user_theme, send_reset_email
+from reports import generate_pdf_report
 import numpy as np
 import plotly.express as px
 import io
 import json
 import os
 import hashlib
-import sqlite3
 import random
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import jinja2
 from streamlit_cookies_controller import CookieController
 
-# ==========================================
-# 1. THEME CONFIGURATIONS & STYLING
-# ==========================================
-
-THEMES = {
-    "Neon Cyberpunk": {
-        "bg": "#09090b", "card_bg": "#18181b", "sidebar_bg": "#09090b", "border": "#27272a",
-        "primary": "#f472b6", "secondary": "#22d3ee", "text_primary": "#f8fafc", "text_secondary": "#a1a1aa",
-        "chart_colors": ['#f472b6', '#22d3ee', '#a855f7', '#fb923c', '#4ade80'],
-        "plotly_template": "plotly_dark"
-    },
-    "Matcha Cloud": {
-        "bg": "#fafaf9", "card_bg": "#ffffff", "sidebar_bg": "#f5f5f4", "border": "#e7e5e4",
-        "primary": "#a3e635", "secondary": "#fbcfe8", "text_primary": "#1c1917", "text_secondary": "#78716c",
-        "chart_colors": ['#a3e635', '#fbcfe8', '#bfdbfe', '#fde047', '#c4b5fd'],
-        "plotly_template": "plotly_white"
-    },
-    "Y2K Vaporwave": {
-        "bg": "#1e1b4b", "card_bg": "#312e81", "sidebar_bg": "#2e1065", "border": "#4c1d95",
-        "primary": "#ff00ff", "secondary": "#00ffff", "text_primary": "#ffffff", "text_secondary": "#c7d2fe",
-        "chart_colors": ['#ff00ff', '#00ffff', '#fbbf24', '#f43f5e', '#8b5cf6'],
-        "plotly_template": "plotly_dark"
-    },
-    "Dark Espresso": {
-        "bg": "#1c1917", "card_bg": "#292524", "sidebar_bg": "#1c1917", "border": "#44403c",
-        "primary": "#d97706", "secondary": "#fcd34d", "text_primary": "#fafaf9", "text_secondary": "#a8a29e",
-        "chart_colors": ['#d97706', '#fcd34d', '#78350f', '#fb923c', '#b45309'],
-        "plotly_template": "plotly_dark"
-    },
-    "Enterprise Light": {
-        "bg": "#F8FAFC", "card_bg": "#FFFFFF", "sidebar_bg": "#F1F5F9", "border": "#E2E8F0",
-        "primary": "#2563EB", "secondary": "#3B82F6", "text_primary": "#0F172A", "text_secondary": "#64748B",
-        "chart_colors": ['#2563EB', '#10B981', '#F59E0B', '#6366F1', '#8B5CF6'],
-        "plotly_template": "plotly_white"
-    },
-    "Enterprise Dark": {
-        "bg": "#0B0F19", "card_bg": "#111827", "sidebar_bg": "#0F172A", "border": "#1F2937",
-        "primary": "#3B82F6", "secondary": "#60A5FA", "text_primary": "#F9FAFB", "text_secondary": "#9CA3AF",
-        "chart_colors": ['#3B82F6', '#10B981', '#FBBF24', '#818CF8', '#A78BFA'],
-        "plotly_template": "plotly_dark"
-    }
-}
-
-def apply_theme():
-    # Injects custom CSS with universal adaptive colors
-    t = THEMES[st.session_state.theme]
-    
-    st.markdown(f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
-
-    html, body, [class*="css"] {{
-        font-family: 'Outfit', -apple-system, sans-serif !important;
-    }}
-    
-    .stApp {{ background-color: {t['bg']}; }}
-
-    /* 1. SMART ADAPTIVE TEXT */
-    h1, h2, h3, h4, h5, h6, .stMarkdown p, .stMarkdown li, label, .st-emotion-cache-1wivap2 {{
-        color: {t['text_primary']} !important;
-    }}
-
-    /* 2. SIDEBAR LOCKDOWN */
-    [data-testid="stSidebar"] > div:first-child {{
-        background-color: {t['sidebar_bg']} !important;
-        border-right: 1px solid {t['border']} !important;
-    }}
-    
-    /* Pull the sidebar content higher up */
-    [data-testid="stSidebarUserContent"] {{
-        padding-top: 1rem !important; 
-    }}
-    
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {{
-        color: {t['text_primary']} !important;
-    }}
-
-    /* 3. BULLETPROOF INPUT BOXES */
-    input, textarea, div[data-baseweb="select"] > div {{
-        background-color: {t['card_bg']} !important;
-        color: {t['text_primary']} !important;
-        -webkit-text-fill-color: {t['text_primary']} !important;
-        border: 2px solid {t['border']} !important;
-        border-radius: 8px !important;
-        transition: all 0.2s ease;
-    }}
-    
-    /* Removes the border from the hidden search box inside dropdowns */
-    div[data-baseweb="select"] input {{
-        border: none !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-    }}
-    
-    /* Forces dropdown arrows to be visible on light themes */
-    div[data-baseweb="select"] svg {{
-        fill: {t['text_primary']} !important;
-        color: {t['text_primary']} !important;
-    }}
-    
-    input::placeholder, textarea::placeholder {{
-        color: {t['text_secondary']} !important;
-        -webkit-text-fill-color: {t['text_secondary']} !important;
-        opacity: 0.7 !important;
-    }}
-    
-    div[data-baseweb="select"] > div:hover, input:hover, input:focus {{
-        border-color: {t['primary']} !important;
-        box-shadow: 0 0 0 1px {t['primary']} !important;
-    }}
-
-    /* 4. BASE WEB POPOVERS */
-    div[data-baseweb="popover"] > div, 
-    div[data-baseweb="popover"] ul, 
-    ul[data-baseweb="menu"], 
-    ul[role="listbox"] {{
-        background-color: {t['card_bg']} !important;
-        border: 1px solid {t['border']} !important;
-        border-radius: 8px !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
-    }}
-    
-    li[role="option"] {{ 
-        color: {t['text_primary']} !important; 
-        background-color: transparent !important;
-    }}
-    
-    li[role="option"]:hover, li[aria-selected="true"] {{ 
-        background-color: {t['bg']} !important; 
-        color: {t['primary']} !important; 
-    }}
-
-    /* Multiselect Tags */
-    span[data-baseweb="tag"] {{
-        background-color: {t['bg']} !important;
-        color: {t['text_primary']} !important;
-        border: 1px solid {t['border']} !important;
-    }}
-    span[data-baseweb="tag"] span {{
-        color: {t['text_primary']} !important;
-    }}
-
-    /* 5. PAGE LOAD ANIMATIONS */
-    @keyframes fadeSlideUp {{
-        0% {{ opacity: 0; transform: translateY(30px); }}
-        100% {{ opacity: 1; transform: translateY(0); }}
-    }}
-
-    div[data-testid="metric-container"], [data-testid="stPlotlyChart"], .stDataFrame, div[data-testid="stForm"] {{
-        animation: fadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }}
-
-    div[data-testid="metric-container"]:nth-child(1) {{ animation-delay: 0.1s; }}
-    div[data-testid="metric-container"]:nth-child(2) {{ animation-delay: 0.2s; }}
-    div[data-testid="metric-container"]:nth-child(3) {{ animation-delay: 0.3s; }}
-    [data-testid="stPlotlyChart"] {{ animation-delay: 0.4s; }}
-
-    /* 6. INTERACTIVE KPI CARDS & PHYSICS */
-    div[data-testid="metric-container"] {{
-        background: {t['card_bg']};
-        border-radius: 20px;
-        padding: 1.8rem;
-        border: 1px solid {t['border']};
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); 
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        position: relative;
-    }}
-
-    div[data-testid="metric-container"]:hover {{
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 20px 40px {t['primary']}33; 
-        border-color: {t['primary']};
-    }}
-    
-    div[data-testid="stMetricValue"] {{
-        font-weight: 800 !important;
-        font-size: 2.4rem !important;
-        background: -webkit-linear-gradient(45deg, {t['primary']}, {t['secondary']});
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: -1px;
-    }}
-
-    div[data-testid="stMetricLabel"] {{
-        color: {t['text_secondary']} !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }}
-
-    /* 7. INTERACTIVE CHARTS */
-    [data-testid="stPlotlyChart"] {{
-        background-color: {t['card_bg']};
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-        border: 1px solid {t['border']};
-        padding: 1rem;
-        box-sizing: border-box;
-        transition: all 0.3s ease;
-    }}
-
-    [data-testid="stPlotlyChart"]:hover {{
-        transform: translateY(-4px);
-        box-shadow: 0 15px 35px {t['secondary']}22; 
-    }}
-
-    /* 8. TACTILE BUTTONS */
-    div.stButton > button, div.stDownloadButton > button, div.stFormSubmitButton > button {{
-        background: linear-gradient(135deg, {t['primary']}, {t['secondary']}) !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-        padding: 0.6rem 1.2rem !important;
-        transition: all 0.2s ease !important;
-        box-shadow: 0 4px 15px {t['primary']}40 !important;
-        transform: scale(1);
-    }}
-    
-    div.stButton > button *, div.stDownloadButton > button *, div.stFormSubmitButton > button * {{
-        color: #ffffff !important; 
-        -webkit-text-fill-color: #ffffff !important;
-    }}
-    
-    div.stButton > button:hover, div.stDownloadButton > button:hover, div.stFormSubmitButton > button:hover {{
-        transform: scale(1.05) translateY(-2px);
-        box-shadow: 0 8px 25px {t['primary']}66 !important;
-    }}
-    
-    div.stButton > button:active, div.stDownloadButton > button:active, div.stFormSubmitButton > button:active {{
-        transform: scale(0.95) translateY(0); 
-        box-shadow: 0 2px 10px {t['primary']}40 !important;
-    }}
-
-    /* 9. ANIMATED & TACTILE TABS */
-    .stTabs [data-baseweb="tab-list"] {{ 
-        gap: 0.5rem; 
-        background-color: transparent; 
-        border-bottom: 2px solid {t['border']}; 
-        padding-top: 10px; /* Creates invisible headroom so the tabs don't get cut off when they lift */
-    }}
-    
-    .stTabs [data-baseweb="tab"] {{ 
-        height: 3.2rem; 
-        background-color: transparent; 
-        color: {t['text_secondary']} !important; 
-        font-weight: 600; 
-        font-size: 1.1rem; 
-        padding: 0 1.5rem;
-        border-radius: 10px 10px 0 0; /* Rounds the top corners */
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Smooth, springy animation */
-    }}
-    
-    /* THE HOVER 'POP-UP' EFFECT */
-    .stTabs [data-baseweb="tab"]:hover {{
-        color: {t['text_primary']} !important;
-        background-color: {t['card_bg']} !important;
-        transform: translateY(-6px); /* physically lifts the tab up */
-        box-shadow: 0 -6px 15px rgba(0,0,0,0.08); /* Adds a shadow underneath the lift */
-    }}
-    
-    /* The Currently Selected Tab */
-    .stTabs [aria-selected="true"] {{ 
-        color: {t['primary']} !important; 
-        border-bottom: 3px solid {t['primary']} !important; 
-        background-color: transparent !important;
-    }}
-    
-    .stTabs [data-baseweb="tab-highlight"] {{ display: none; }}
-
-   /* 10. FILE UPLOADER FIXES */
-    [data-testid="stFileUploadDropzone"] {{
-        background-color: {t['card_bg']} !important;
-        border: 2px dashed {t['border']} !important;
-        border-radius: 12px !important;
-    }}
-    
-    [data-testid="stFileUploadDropzone"] * {{
-        color: {t['text_primary']} !important;
-    }}
-
-    /* 🛑 THE ABSOLUTE OVERRIDE FOR THE FILE PILL */
-    [data-testid="stUploadedFile"],
-    div.stUploadedFile {{
-        background-color: {t['bg']} !important;
-        border: 1px solid {t['border']} !important;
-        border-radius: 8px !important;
-    }}
-
-    /* Nuke EVERY background color on EVERY child element inside the file box */
-    [data-testid="stUploadedFile"] *,
-    div.stUploadedFile * {{
-        background-color: transparent !important;
-        color: {t['text_primary']} !important;
-        fill: {t['text_primary']} !important;
-        box-shadow: none !important;
-    }}
-
-    /* 11. TOP HEADER & LAYOUT FIXES (Forces header to match theme) */
-    [data-testid="stHeader"] {{ 
-        background-color: {t['bg']} !important; 
-    }}
-    #MainMenu, footer, .stDeployButton {{ display: none; }}
-    .block-container {{ padding-top: 2rem !important; padding-bottom: 3rem !important; max-width: 1400px !important; }}
-    
-    /* 12. LOADING SPINNER FIX */
-    [data-testid="stSpinner"] * {{
-        color: {t['text_primary']} !important;
-        stroke: {t['primary']} !important;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
 
 # ==========================================
 # 2. DATA LOADING & PROCESSING
@@ -625,18 +310,18 @@ def render_data_view(df):
     with col2:
         total_sales = float(df['sales'].sum()) if 'sales' in df.columns else 0.0
         orders = int(df['order_id'].nunique()) if 'order_id' in df.columns else len(df)
+        total_rows = len(df)
         
+        # 1. HTML Report Download
         sales_str = "${:,.2f}".format(total_sales)
         orders_str = "{:,}".format(orders)
-        rows_str = "{:,}".format(len(df))
+        rows_str = "{:,}".format(total_rows)
         
-        # HTML built safely without triple quotes
         html_content = (
             "<html>\n"
             "<head><title>Executive Sales Report</title></head>\n"
             "<body style=\"font-family: 'Outfit', -apple-system, sans-serif; padding: 20px;\">\n"
             "    <h2>Executive Sales Summary Report</h2>\n"
-            "    <p>Generated automatically by the AI Sales Dashboard.</p>\n"
             "    <hr>\n"
             "    <h3>Key Metrics</h3>\n"
             "    <ul>\n"
@@ -644,16 +329,26 @@ def render_data_view(df):
             f"        <li><b>Total Orders:</b> {orders_str}</li>\n"
             f"        <li><b>Dataset Rows Analyzed:</b> {rows_str}</li>\n"
             "    </ul>\n"
-            "    <p><i>More detailed AI insights can be viewed live on the dashboard platform.</i></p>\n"
             "</body>\n"
             "</html>"
         )
         
         st.download_button(
-            label="📄 Download Executive Report (HTML)",
+            label="🌐 Download Summary (HTML)",
             data=html_content,
             file_name='executive_summary.html',
             mime='text/html',
+            use_container_width=True
+        )
+        
+        # 2. THE NEW PDF REPORT DOWNLOAD
+        pdf_bytes = generate_pdf_report(total_sales, orders, total_rows)
+        
+        st.download_button(
+            label="📄 Download Executive Report (PDF)",
+            data=pdf_bytes,
+            file_name='executive_summary.pdf',
+            mime='application/pdf',
             use_container_width=True
         )
         
@@ -995,93 +690,6 @@ def render_chat_data(df):
 # ==========================================
 # 9.5. ADVANCED AUTHENTICATION SYSTEM
 # ==========================================
-def init_db():
-    conn = sqlite3.connect('dashboard_enterprise.db')
-    c = conn.cursor()
-    # Create user table with a dedicated column for their saved theme
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            email TEXT PRIMARY KEY,
-            password TEXT NOT NULL,
-            saved_theme TEXT DEFAULT 'Neon Cyberpunk'
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-# Initialize the database when the app runs
-init_db()
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def save_user(email_or_phone, password):
-    try:
-        conn = sqlite3.connect('dashboard_enterprise.db')
-        c = conn.cursor()
-        c.execute("INSERT INTO users (email, password) VALUES (?, ?)", 
-                  (email_or_phone, hash_password(password)))
-        conn.commit()
-        conn.close()
-        return True
-    except sqlite3.IntegrityError:
-        return False # User already exists
-
-def authenticate(email_or_phone, password):
-    conn = sqlite3.connect('dashboard_enterprise.db')
-    c = conn.cursor()
-    c.execute("SELECT password, saved_theme FROM users WHERE email=?", (email_or_phone,))
-    result = c.fetchone()
-    conn.close()
-    
-    if result and result[0] == hash_password(password):
-        # Load their saved theme into the session state!
-        st.session_state.theme = result[1] 
-        return True
-    return False
-
-def reset_password(email_or_phone, new_password):
-    conn = sqlite3.connect('dashboard_enterprise.db')
-    c = conn.cursor()
-    c.execute("UPDATE users SET password=? WHERE email=?", 
-              (hash_password(new_password), email_or_phone))
-    rows_affected = c.rowcount
-    conn.commit()
-    conn.close()
-    return rows_affected > 0
-
-def update_user_theme(email_or_phone, new_theme):
-    if email_or_phone:
-        conn = sqlite3.connect('dashboard_enterprise.db')
-        c = conn.cursor()
-        c.execute("UPDATE users SET saved_theme=? WHERE email=?", (new_theme, email_or_phone))
-        conn.commit()
-        conn.close()
-
-def send_reset_email(target_email, otp_code):
-    # ⚠️ IMPORTANT: Replace these with your actual email details
-    sender_email = "aadiakarsh@gmail.com" 
-    # Must be a 16-digit Google App Password, NOT your normal Gmail password!
-    sender_password = "ufqf plte dtwd xphf" 
-
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = target_email
-    msg['Subject'] = "AI Dashboard - Password Reset Code"
-
-    body = f"Your secure password reset code is: {otp_code}\n\nIf you did not request this, please ignore this email."
-    msg.attach(MIMEText(body, 'plain'))
-
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
-        server.quit()
-        return True
-    except Exception as e:
-        print(f"Email failed: {e}")
-        return False
 
 def render_login(controller):
     st.markdown("<h1 style='text-align: center; margin-top: 5rem;'>🔐 AI Sales Dashboard</h1>", unsafe_allow_html=True)

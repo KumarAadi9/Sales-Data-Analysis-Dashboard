@@ -1,6 +1,11 @@
-streamlit
+streamlit>=1.30.0
 pandas
 numpy
 plotly
 google-generativeai
-openpyxl
+prophet
+scikit-learn
+bcrypt
+python-dotenv
+fpdf
+streamlit-cookies-controller
