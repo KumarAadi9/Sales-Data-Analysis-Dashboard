@@ -504,7 +504,17 @@ def render_dashboard(df):
     with row1_col2:
         if "category" in df.columns and "sales" in df.columns:
             st.subheader("Sales by Category")
-            sales_cat = df.groupby("category")["sales"].sum().reset_index()
+            
+            # Calculate sales per category and sort them highest to lowest
+            sales_cat = df.groupby("category")["sales"].sum().reset_index().sort_values("sales", ascending=False)
+            
+            # SMART PIE CHART LOGIC: Keep Top 7, group the rest into "Others"
+            if len(sales_cat) > 7:
+                top_cats = sales_cat.head(7)
+                others_sales = sales_cat.iloc[7:]["sales"].sum()
+                others_df = pd.DataFrame([{"category": "Other Categories", "sales": others_sales}])
+                sales_cat = pd.concat([top_cats, others_df], ignore_index=True)
+
             fig_cat = px.pie(
                 sales_cat, names="category", values="sales", hole=0.5,
                 color_discrete_sequence=THEMES[st.session_state.theme]['chart_colors'],
