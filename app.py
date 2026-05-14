@@ -5,6 +5,8 @@ from auth import save_user, authenticate, reset_password, update_user_theme, sen
 from reports import generate_pdf_report
 import numpy as np
 import plotly.express as px
+import sqlite3
+import random
 import io
 import json
 import os
