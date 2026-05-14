@@ -103,3 +103,12 @@ def send_reset_email(target_email, otp_code):
     except Exception as e:
         print(f"Email failed: {e}")
         return False
+    
+def check_user_exists(email):
+    # Securely checks if a user exists without leaking DB logic to the frontend
+    conn = sqlite3.connect('dashboard_enterprise.db')
+    c = conn.cursor()
+    c.execute("SELECT email FROM users WHERE email=?", (email,))
+    result = c.fetchone()
+    conn.close()
+    return result is not None        

@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
 from styles import THEMES, apply_theme
-from auth import save_user, authenticate, reset_password, update_user_theme, send_reset_email
+from auth import save_user, authenticate, reset_password, update_user_theme, send_reset_email, check_user_exists
 from reports import generate_pdf_report
 import numpy as np
 import plotly.express as px
-import sqlite3
 import random
 import io
 import json
@@ -187,6 +186,7 @@ def render_dashboard(df):
                 yaxis=dict(showgrid=True, gridcolor=t['border'], color=t['text_secondary'], tickfont=dict(color=t['text_secondary']))
             )
             st.plotly_chart(fig_trend, use_container_width=True)
+            st.session_state.pdf_fig_trend = fig_trend
             
     with row1_col2:
         if "category" in df.columns and "sales" in df.columns:
@@ -215,6 +215,7 @@ def render_dashboard(df):
             )
             fig_cat.update_traces(textposition='inside', textinfo='percent', hoverinfo='label+percent+value')
             st.plotly_chart(fig_cat, use_container_width=True)
+            st.session_state.pdf_fig_cat = fig_cat
             
     row2_col1, row2_col2 = st.columns(2, gap="large")
     
@@ -344,7 +345,11 @@ def render_data_view(df):
         )
         
         # 2. THE NEW PDF REPORT DOWNLOAD
-        pdf_bytes = generate_pdf_report(total_sales, orders, total_rows)
+        # Grab the charts we saved in the session state (default to None if they haven't visited the dashboard tab yet)
+        fig_trend = st.session_state.get('pdf_fig_trend', None)
+        fig_cat = st.session_state.get('pdf_fig_cat', None)
+    
+        pdf_bytes = generate_pdf_report(total_sales, orders, total_rows, fig_trend, fig_cat)
         
         st.download_button(
             label="📄 Download Executive Report (PDF)",
@@ -440,6 +445,13 @@ def render_insights(df):
 # ==========================================
 # 7. FORECASTING & MACHINE LEARNING (PROPHET)
 # ==========================================
+@st.cache_resource
+def train_prophet_model(daily_sales):
+    from prophet import Prophet
+    # Initialize and train the model only once
+    m = Prophet(yearly_seasonality=False, daily_seasonality=False)
+    m.fit(daily_sales)
+    return m
 def render_forecasting(df):
     st.header("📈 Predictive Sales Forecasting")
     st.markdown("Utilizing Prophet time-series modeling to project 30-day performance based on weekly seasonality and historical trends.")
@@ -458,12 +470,9 @@ def render_forecasting(df):
         st.warning("Not enough historical data for a reliable ML forecast (minimum 30 days required).")
         return
         
-    with st.spinner("Training Prophet time-series model..."):
-        from prophet import Prophet
-        
-        # Initialize and train the model
-        m = Prophet(yearly_seasonality=False, daily_seasonality=False)
-        m.fit(daily_sales)
+    with st.spinner("Loading Prophet time-series model..."):
+        # Pulls the trained model from cache instantly!
+        m = train_prophet_model(daily_sales)
         
         # Predict the next 30 days
         future = m.make_future_dataframe(periods=30)
@@ -729,13 +738,9 @@ def render_login(controller):
                     reset_user = st.text_input("Enter your registered Email", key="reset_user_input")
                     if st.button("Send Confirmation Code", use_container_width=True):
                         # Query SQLite to check if user exists
-                        conn = sqlite3.connect('dashboard_enterprise.db')
-                        c = conn.cursor()
-                        c.execute("SELECT email FROM users WHERE email=?", (reset_user,))
-                        user_exists = c.fetchone()
-                        conn.close()
                         
-                        if user_exists:
+                        # Securely check if user exists using auth.py
+                        if check_user_exists(reset_user):
                             with st.spinner("Sending email..."):
                                 generated_otp = str(random.randint(100000, 999999))
                                 
