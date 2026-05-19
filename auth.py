@@ -80,7 +80,7 @@ def update_user_theme(email_or_phone, new_theme):
 def send_reset_email(target_email, otp_code):
     # Securely pulls email credentials from the .env file
     sender_email = st.secrets["EMAIL_SENDER"]
-    sender_password = os.getenv("EMAIL_PASS")
+    sender_password = st.secrets["EMAIL_PASS"]
 
     if not sender_email or not sender_password:
         print("Error: Email credentials not found in .env file.")
