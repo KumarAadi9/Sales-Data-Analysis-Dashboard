@@ -7,12 +7,7 @@ THEMES = {
         "chart_colors": ['#f472b6', '#22d3ee', '#a855f7', '#fb923c', '#4ade80'],
         "plotly_template": "plotly_dark"
     },
-    "Matcha Cloud": {
-        "bg": "#fafaf9", "card_bg": "#ffffff", "sidebar_bg": "#f5f5f4", "border": "#e7e5e4",
-        "primary": "#a3e635", "secondary": "#fbcfe8", "text_primary": "#1c1917", "text_secondary": "#78716c",
-        "chart_colors": ['#a3e635', '#fbcfe8', '#bfdbfe', '#fde047', '#c4b5fd'],
-        "plotly_template": "plotly_white"
-    },
+   
     "Y2K Vaporwave": {
         "bg": "#1e1b4b", "card_bg": "#312e81", "sidebar_bg": "#2e1065", "border": "#4c1d95",
         "primary": "#ff00ff", "secondary": "#00ffff", "text_primary": "#ffffff", "text_secondary": "#c7d2fe",
@@ -25,12 +20,7 @@ THEMES = {
         "chart_colors": ['#d97706', '#fcd34d', '#78350f', '#fb923c', '#b45309'],
         "plotly_template": "plotly_dark"
     },
-    "Enterprise Light": {
-        "bg": "#F8FAFC", "card_bg": "#FFFFFF", "sidebar_bg": "#F1F5F9", "border": "#E2E8F0",
-        "primary": "#2563EB", "secondary": "#3B82F6", "text_primary": "#0F172A", "text_secondary": "#64748B",
-        "chart_colors": ['#2563EB', '#10B981', '#F59E0B', '#6366F1', '#8B5CF6'],
-        "plotly_template": "plotly_white"
-    },
+   
     "Enterprise Dark": {
         "bg": "#0B0F19", "card_bg": "#111827", "sidebar_bg": "#0F172A", "border": "#1F2937",
         "primary": "#3B82F6", "secondary": "#60A5FA", "text_primary": "#F9FAFB", "text_secondary": "#9CA3AF",

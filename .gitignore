@@ -1,18 +1,20 @@
+# Security / Secrets
+.env
 .streamlit/secrets.toml
-__pycache__/
+
+# Databases
+dashboard_enterprise.db
+*.db
+users.json
+
+# Spreadsheets (Ignore all, BUT allow the data folder)
 *.csv
 *.xlsx
 *.xls
-.env
-.DS_Store
-users.json
-# Ignore environment variables
-.env
+!data/*.csv
+!data/*.xlsx
 
-# Ignore the SQLite database
-dashboard_enterprise.db
-*.db
-
-# Ignore Python cache
+# Python Cache & OS Files
 __pycache__/
 *.pyc
+.DS_Store
