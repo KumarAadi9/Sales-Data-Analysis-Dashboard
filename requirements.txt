@@ -9,4 +9,4 @@ bcrypt
 python-dotenv
 fpdf
 streamlit-cookies-controller
-kaleido==0.1.0
+kaleido>=1.0.0
