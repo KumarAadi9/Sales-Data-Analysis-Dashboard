@@ -349,20 +349,27 @@ def render_data_view(df):
         fig_trend = st.session_state.get('pdf_fig_trend', None)
         fig_cat = st.session_state.get('pdf_fig_cat', None)
     
-        pdf_bytes = generate_pdf_report(total_sales, orders, total_rows, fig_trend, fig_cat)
-        
-        st.download_button(
-            label="📄 Download Executive Report (PDF)",
-            data=pdf_bytes,
-            file_name='executive_summary.pdf',
-            mime='application/pdf',
-            use_container_width=True
-        )
+        if st.button("📄 Generate Executive Report (PDF)", use_container_width=True):
+            st.session_state.pdf_bytes = generate_pdf_report(total_sales, orders, total_rows, fig_trend, fig_cat)
+
+        if 'pdf_bytes' in st.session_state:
+            st.download_button(
+                label="⬇️ Download Executive Report (PDF)",
+                data=st.session_state.pdf_bytes,
+                file_name='executive_summary.pdf',
+                mime='application/pdf',
+                use_container_width=True
+            )
         
     st.markdown("<br>", unsafe_allow_html=True)
     t = THEMES[st.session_state.theme]
-    
-    styled_df = df.style.set_properties(**{
+
+    PREVIEW_ROWS = 1000
+    if len(df) > PREVIEW_ROWS:
+        st.info(f"Showing the first {PREVIEW_ROWS:,} of {len(df):,} rows. Download the CSV above for the full data.")
+    preview_df = df.head(PREVIEW_ROWS)
+
+    styled_df = preview_df.style.set_properties(**{
         'background-color': t['card_bg'],
         'color': t['text_primary'],
         'border-color': t['border']
