@@ -18,16 +18,6 @@ A modern, enterprise-grade business intelligence platform built with Python and 
 
 ---
 
-## 📸 Screenshots
-
-*(Replace these placeholder links with actual screenshots of your dashboard!)*
-
-| Executive Dashboard | AI Data Chat | Risk Analysis (RFM) |
-| :---: | :---: | :---: |
-| <img src="https://via.placeholder.com/400x250.png?text=Dashboard+View" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=Chat+AI" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=RFM+Analysis" width="400"/> |
-
----
-
 ## 🗂️ Project Structure
 
 | File | Purpose |
