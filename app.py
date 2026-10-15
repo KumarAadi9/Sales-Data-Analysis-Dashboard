@@ -3,6 +3,7 @@ import pandas as pd
 from styles import THEMES, apply_theme
 from auth import save_user, authenticate, reset_password, update_user_theme, send_reset_email, check_user_exists
 from reports import generate_pdf_report
+from cleaning import clean_data
 import numpy as np
 import plotly.express as px
 import random
@@ -13,6 +14,9 @@ import hashlib
 import random
 import jinja2
 from streamlit_cookies_controller import CookieController
+import secrets as pysecrets
+from security import (COOKIE_TTL, sign_cookie, verify_cookie, generate_otp,
+                      create_otp_record, verify_otp, resend_wait)
 
 
 # ==========================================
@@ -41,41 +45,6 @@ def load_data(uploaded_file):
         st.error(f"Error loading file: {e}")
         return None
             
-
-def clean_data(df):
-    """Removes duplicates, missing and invalid rows, and tidies text columns.
-    Returns the cleaned dataframe and a report of what was removed."""
-    report = {"rows_in": len(df)}
-    df = df.copy()
-
-    # 1. Duplicate rows
-    before = len(df)
-    df = df.drop_duplicates()
-    report["duplicates"] = before - len(df)
-
-    # 2. Make sales numeric, then drop rows missing sales or date
-    if "sales" in df.columns:
-        df["sales"] = pd.to_numeric(df["sales"], errors="coerce")
-    required = [c for c in ("sales", "order_date") if c in df.columns]
-    before = len(df)
-    if required:
-        df = df.dropna(subset=required)
-    report["missing"] = before - len(df)
-
-    # 3. Drop zero or negative sales (returns, cancellations, bad entries)
-    before = len(df)
-    if "sales" in df.columns:
-        df = df[df["sales"] > 0]
-    report["non_positive"] = before - len(df)
-
-    # 4. Trim stray spaces in text columns
-    for c in ("region", "category", "product_name", "customer_id"):
-        if c in df.columns and (pd.api.types.is_object_dtype(df[c]) or pd.api.types.is_string_dtype(df[c])):
-            df[c] = df[c].str.strip()
-
-    report["rows_out"] = len(df)
-    return df, report
-
 
 def show_cleaning_report(r):
     removed = r["rows_in"] - r["rows_out"]
@@ -778,6 +747,22 @@ def render_chat_data(df):
 # 9.5. ADVANCED AUTHENTICATION SYSTEM
 # ==========================================
 
+@st.cache_resource
+def _ephemeral_cookie_secret():
+    # Fallback only: random per server process, so logins reset on restart.
+    return pysecrets.token_hex(32)
+
+
+def get_cookie_secret():
+    """Signing key from Streamlit secrets or env; never a hardcoded default."""
+    key = ""
+    try:
+        key = st.secrets.get("COOKIE_SECRET", "")
+    except Exception:
+        pass
+    return key or os.environ.get("COOKIE_SECRET", "") or _ephemeral_cookie_secret()
+
+
 def render_login(controller):
     st.markdown("<h1 style='text-align: center; margin-top: 5rem;'>🔐 AI Sales Dashboard</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #94a3b8;'>Secure enterprise portal access.</p>", unsafe_allow_html=True)
@@ -798,7 +783,7 @@ def render_login(controller):
                     if authenticate(email_or_phone, password):
                         st.session_state.logged_in = True
                         st.session_state.current_user = email_or_phone
-                        controller.set('logged_in_user', email_or_phone, max_age=86400)
+                        controller.set('logged_in_user', sign_cookie(email_or_phone, get_cookie_secret()), max_age=COOKIE_TTL)
                         st.rerun()
                     else:
                         st.error("Invalid credentials.")
@@ -816,13 +801,16 @@ def render_login(controller):
                         # Query SQLite to check if user exists
                         
                         # Securely check if user exists using auth.py
-                        if check_user_exists(reset_user):
+                        wait = resend_wait(st.session_state.get("reset_record"))
+                        if wait:
+                            st.error(f"Please wait {wait}s before requesting another code.")
+                        elif check_user_exists(reset_user):
                             with st.spinner("Sending email..."):
-                                generated_otp = str(random.randint(100000, 999999))
+                                generated_otp = generate_otp()
                                 
                                 # Call our new email function!
                                 if send_reset_email(reset_user, generated_otp):
-                                    st.session_state.reset_otp = generated_otp
+                                    st.session_state.reset_record = create_otp_record(generated_otp)
                                     st.session_state.reset_target_user = reset_user
                                     st.session_state.reset_step = 'verify_code'
                                     st.rerun()
@@ -846,8 +834,9 @@ def render_login(controller):
                             st.rerun()
                     with btn_col2:
                         if st.button("Verify & Update", use_container_width=True):
-                            if entered_code != st.session_state.reset_otp:
-                                st.error("Invalid confirmation code.")
+                            ok, reason = verify_otp(st.session_state.get("reset_record"), entered_code)
+                            if not ok:
+                                st.error(reason)
                             elif new_reset_pass != confirm_reset_pass:
                                 st.error("Passwords do not match.")
                             elif len(new_reset_pass) < 6:
@@ -855,6 +844,7 @@ def render_login(controller):
                             else:
                                 if reset_password(st.session_state.reset_target_user, new_reset_pass):
                                     st.success("Password updated! You can now log in.")
+                                    st.session_state.reset_record = None
                                     st.session_state.reset_step = 'request_code'
                                 else:
                                     st.error("An error occurred.")
@@ -900,7 +890,10 @@ def main():
     if 'theme' not in st.session_state or st.session_state.theme not in THEMES:
         st.session_state.theme = "Neon Cyberpunk"
         
-    saved_user = controller.get('logged_in_user')
+    raw_cookie = controller.get('logged_in_user')
+    saved_user = verify_cookie(raw_cookie, get_cookie_secret()) if raw_cookie else None
+    if raw_cookie and not saved_user:
+        controller.remove('logged_in_user')  # tampered, expired or pre-signing cookie
     if saved_user:
         st.session_state.logged_in = True
         st.session_state.current_user = saved_user
