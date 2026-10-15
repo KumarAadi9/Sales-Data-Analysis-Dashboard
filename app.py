@@ -35,15 +35,57 @@ def load_data(uploaded_file):
             return None
             
         df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
-        
-        if "order_date" in df.columns:
-            df["order_date"] = pd.to_datetime(df["order_date"], errors='coerce')
-            
+        # Dates are parsed later (after column mapping) so the user can choose DD/MM/YYYY
         return df
     except Exception as e:
         st.error(f"Error loading file: {e}")
         return None
             
+
+def clean_data(df):
+    """Removes duplicates, missing and invalid rows, and tidies text columns.
+    Returns the cleaned dataframe and a report of what was removed."""
+    report = {"rows_in": len(df)}
+    df = df.copy()
+
+    # 1. Duplicate rows
+    before = len(df)
+    df = df.drop_duplicates()
+    report["duplicates"] = before - len(df)
+
+    # 2. Make sales numeric, then drop rows missing sales or date
+    if "sales" in df.columns:
+        df["sales"] = pd.to_numeric(df["sales"], errors="coerce")
+    required = [c for c in ("sales", "order_date") if c in df.columns]
+    before = len(df)
+    if required:
+        df = df.dropna(subset=required)
+    report["missing"] = before - len(df)
+
+    # 3. Drop zero or negative sales (returns, cancellations, bad entries)
+    before = len(df)
+    if "sales" in df.columns:
+        df = df[df["sales"] > 0]
+    report["non_positive"] = before - len(df)
+
+    # 4. Trim stray spaces in text columns
+    for c in ("region", "category", "product_name", "customer_id"):
+        if c in df.columns and (pd.api.types.is_object_dtype(df[c]) or pd.api.types.is_string_dtype(df[c])):
+            df[c] = df[c].str.strip()
+
+    report["rows_out"] = len(df)
+    return df, report
+
+
+def show_cleaning_report(r):
+    removed = r["rows_in"] - r["rows_out"]
+    with st.sidebar.expander(f"🧹 Data cleaning: {removed:,} rows removed"):
+        st.write(f"Rows in: **{r['rows_in']:,}**")
+        st.write(f"Duplicate rows removed: **{r['duplicates']:,}**")
+        st.write(f"Rows with missing sales or date removed: **{r['missing']:,}**")
+        st.write(f"Zero or negative sales removed: **{r['non_positive']:,}**")
+        st.write(f"Rows used: **{r['rows_out']:,}**")
+
 
 @st.cache_data
 def generate_demo_data():
@@ -1059,8 +1101,12 @@ This dashboard is a fully integrated data science environment built to transform
             
             mapped_df = mapped_df.loc[:, ~mapped_df.columns.duplicated()]
             
+            dayfirst = st.sidebar.checkbox("Dates are DD/MM/YYYY", value=False)
             if "order_date" in mapped_df.columns:
-                mapped_df["order_date"] = pd.to_datetime(mapped_df["order_date"], errors='coerce')
+                mapped_df["order_date"] = pd.to_datetime(mapped_df["order_date"], errors="coerce", dayfirst=dayfirst)
+
+            mapped_df, clean_report = clean_data(mapped_df)
+            show_cleaning_report(clean_report)
                 
             filtered_df = render_sidebar(mapped_df)
             
