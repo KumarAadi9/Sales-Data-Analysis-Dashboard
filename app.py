@@ -713,39 +713,66 @@ def render_chat_data(df):
 
     try:
         import google.generativeai as genai
+        from chat_agent import make_tool, build_schema_text, SYSTEM_PROMPT
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
     except Exception as e:
         st.error(f"Error initializing AI: {e}. Make sure `google-generativeai` is installed.")
         return
-        
-    user_query = st.text_input("Ask a question about your sales data:", placeholder="e.g., What do you suggest me to do differently to increase my profits?")
-    
+
+    if "chat_msgs" not in st.session_state:
+        st.session_state.chat_msgs = []
+
+    top = st.columns([4, 1])
+    top[0].caption("Answers are computed from your filtered data, not guessed. Open 'How this was calculated' to verify.")
+    if top[1].button("🗑️ Clear chat", use_container_width=True):
+        st.session_state.chat_msgs = []
+        st.rerun()
+
+    if not st.session_state.chat_msgs:
+        st.markdown("**Try:** *Which region has the highest sales?* · *Show monthly profit* · *Top 5 products by sales* · *Compare Q1 vs Q2 sales*")
+
+    def show_steps(steps):
+        if not steps:
+            return
+        with st.expander("🔎 How this was calculated"):
+            for i, step in enumerate(steps, 1):
+                used = {k: v for k, v in step["args"].items() if v not in ("", None)}
+                st.caption(f"Query {i}: {used}")
+                if step["table"] is not None:
+                    st.dataframe(step["table"], use_container_width=True, hide_index=True)
+                else:
+                    st.code(step["text"])
+
+    for m in st.session_state.chat_msgs:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+            show_steps(m.get("steps"))
+
+    user_query = st.chat_input("Ask a question about your sales data")
     if user_query:
-        with st.spinner("Analyzing data and generating response..."):
-            try:
-                cols_str = ', '.join(df.columns)
-                rows_len = len(df)
-                stats_str = df.describe().to_string()
-                head_str = df.head(3).to_string()
-                
-                context = (
-                    "Here is a summary of the sales dataset:\n"
-                    f"Columns: {cols_str}\n"
-                    f"Number of rows: {rows_len}\n\n"
-                    "Summary statistics:\n"
-                    f"{stats_str}\n\n"
-                    "Top 3 rows of data:\n"
-                    f"{head_str}\n\n"
-                    "Based on this specific data, answer the user question. Be concise, professional, and reference specific numbers from the dataset if applicable."
-                )
-                
-                response = model.generate_content(f"{context}\n\nUser Question: {user_query}")
-                
-                st.success("AI Response:")
-                st.markdown(response.text)
-            except Exception as e:
-                st.error(f"Error generating response: {e}. (Make sure your API key is valid).")
+        with st.chat_message("user"):
+            st.markdown(user_query)
+        with st.chat_message("assistant"):
+            with st.spinner("Querying your data..."):
+                try:
+                    steps = []
+                    model = genai.GenerativeModel(
+                        "gemini-2.5-flash",
+                        tools=[make_tool(df, steps)],
+                        system_instruction=SYSTEM_PROMPT.format(schema=build_schema_text(df)),
+                    )
+                    history = [
+                        {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
+                        for m in st.session_state.chat_msgs[-8:]
+                    ]
+                    chat = model.start_chat(history=history, enable_automatic_function_calling=True)
+                    answer = chat.send_message(user_query).text
+                except Exception as e:
+                    answer, steps = f"Sorry, that failed: {e}. (Check that your API key is valid.)", []
+            st.markdown(answer)
+            show_steps(steps)
+        st.session_state.chat_msgs.append({"role": "user", "content": user_query})
+        st.session_state.chat_msgs.append({"role": "assistant", "content": answer, "steps": steps})
 
 # ==========================================
 # 9.5. ADVANCED AUTHENTICATION SYSTEM
