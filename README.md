@@ -109,6 +109,26 @@ For best results, your file should contain these columns (names are auto-detecte
 
 ---
 
+## 🧪 Large-Scale Test (1M+ rows)
+
+The dashboard was tested locally on the public **Online Retail II** dataset (1,067,371 raw transaction rows).
+
+1. Download Online Retail II (Kaggle or UCI) as a CSV.
+2. Convert it to the dashboard's column layout (computes `sales = Quantity × Price`, keeps every row):
+```bash
+   python scripts/prepare_retail_data.py online_retail_II.csv retail_raw_1M.csv
+```
+3. Upload `retail_raw_1M.csv` in the app. The built-in cleaning step reports what it removed.
+
+| Metric | Result |
+| :--- | :--- |
+| Raw rows ingested | 1,067,371 |
+| Duplicate rows removed | 34,542 |
+| Zero or negative sales removed | 25,110 |
+| Rows analysed | 1,007,719 |
+
+All tabs (Dashboard, AI Insights, Forecast, Risk, Chat AI, Data & Reports) worked on this file when run locally. The free Streamlit Cloud tier has limited memory, so very large files are best run on your own machine. The dataset has no product category, so the script reuses country for the category chart.
+
 ## 🔮 Future Improvements
 
 - [ ] Transition from in-memory Pandas processing to `DuckDB` for handling datasets > 1 million rows.
