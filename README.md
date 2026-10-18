@@ -10,7 +10,7 @@ A modern, enterprise-grade business intelligence platform built with Python and 
 
 * **🔐 Secure Authentication**: Sign-up and login backed by SQLite, with passwords hashed using `bcrypt`. Includes an email-based password reset (6-digit code from `secrets`, stored hashed, expires in 10 minutes, 5 attempts, 60-second resend cooldown) and a persistent login via an HMAC-signed browser cookie that expires after 24 hours. Each user's theme preference is saved to their account.
 * **📊 Interactive Dashboard**: KPI cards (total sales, profit or average order value, total orders), monthly sales trend, sales by category, regional performance, and top 10 products, all as Plotly charts styled to the active theme.
-* **📈 Time-Series Forecasting**: Uses Meta's **Prophet** to model historical daily sales and project the next 30 days, with a confidence interval. The trained model is cached so repeated views load instantly.
+* **📈 Time-Series Forecasting**: Tests several models (repeat last week, weekday average, recent average and Meta's **Prophet**) on the most recent part of your own data and forecasts with the one that has the lowest error (WAPE). Choose a weekly view (default, 4 weeks ahead) or a daily view (30 days ahead). The page shows the forecast, a likely range, the measured error and a table of how every model scored.
 * **⚠️ Anomaly Detection**: A scikit-learn **Isolation Forest** flags irregular sales days and highlights them on the daily sales line.
 * **🎯 Customer Risk (RFM) Analysis**: Scores customers on Recency, Frequency, and Monetary value (terciles, 1–3). High-value customers with low recency are flagged as churn risks, with a risk level (low, intermediate, critical), revenue at risk, and a suggested action plan.
 * **🤖 Generative AI**: Google Gemini 2.5 Flash generates business insights from dataset summary statistics, and a chat assistant answers plain-English questions by running real aggregations on your data through Gemini function calling (no model-written code is executed), with a "How this was calculated" panel showing each query and result.
@@ -52,12 +52,13 @@ The numbers below come from `data/Sample - Superstore.csv` (9,994 order lines, J
 
 | File | Purpose |
 | :--- | :--- |
-| `app.py` | Main Streamlit app: data loading, filters, dashboard, forecasting, RFM, AI features, and routing |
+| `app.py` | Main Streamlit app: data loading, filters, dashboard, forecast page, RFM, AI features, and routing |
+| `forecasting.py` | Forecast models, rolling backtest and automatic model choice (no Streamlit code, fully testable) |
 | `auth.py` | User sign-up, login (bcrypt), password reset, reset email, and theme persistence (SQLite) |
 | `security.py` | Signed login cookies (HMAC-SHA256) and expiring, attempt-limited one-time codes |
 | `cleaning.py` | Data-cleaning step: duplicates, missing or invalid sales and dates, text trimming |
 | `chat_agent.py` | Chat tool layer: safe `query_sales` aggregation that Gemini calls through function calling |
-| `tests/` | `pytest` unit tests for the cleaning step |
+| `tests/` | `pytest` unit tests for the cleaning step and the forecasting module |
 | `Scripts/` | Helper scripts: Online Retail II converter and the Key Findings chart generator |
 | `images/findings/` | Charts used in the Key Findings section |
 | `reports.py` | PDF executive report generation (FPDF + Plotly charts exported via Kaleido) |
@@ -134,7 +135,7 @@ For best results, your file should contain these columns (names are auto-detecte
 * **Frontend / Framework**: Streamlit, Custom CSS
 * **Data Processing**: Pandas, NumPy
 * **Data Visualization**: Plotly Express, Plotly Graph Objects
-* **Machine Learning**: Prophet (forecasting), scikit-learn (Isolation Forest anomaly detection)
+* **Machine Learning**: Prophet and simple baselines with automatic model selection (forecasting), scikit-learn (Isolation Forest anomaly detection)
 * **Artificial Intelligence**: Google Generative AI (`gemini-2.5-flash`)
 * **Authentication & Storage**: SQLite, bcrypt, streamlit-cookies-controller
 * **Reporting**: FPDF, Kaleido (Plotly static image export)
@@ -143,7 +144,8 @@ For best results, your file should contain these columns (names are auto-detecte
 
 ## ✅ Validation & Limitations
 
-- **Forecast accuracy:** Prophet was evaluated with rolling-origin cross-validation (`prophet.diagnostics`) on a separate Superstore export (the Kaggle `train.csv` version: 9,800 order lines, 2015–2018, not included in this repo). Daily MAPE is inflated by near-zero sales days, so weekly aggregation and WAPE were also checked (weekly WAPE ≈ 35%). Forecasts on sparse data should be treated as directional, not precise.
+- **Forecast accuracy (measured in the app's own code):** on `data/Sample - Superstore.csv`, a rolling test of 3 held-out 30-day periods gives a daily error (WAPE) of about 68% for Prophet, 71% for the weekday average and 81-89% for the other baselines. Daily sales are very noisy, so no model does well. At weekly level (4 weeks ahead, 4 tests) the best model's error is about 33%. Prophet and a simple recent average score almost the same there, so the app uses whichever scores lower on your data. On this dataset the new setup is **not** more accurate than the earlier Prophet-only setup in daily mode (68.4% vs 67.9%); the gain is that the app now measures its own error, shows it, and defaults to the weekly view. Forecasts on sparse data should be treated as directional, not precise.
+- **Missing days** are counted as 0 sales when building the daily series.
 - **Scale:** Data is processed in memory with Pandas, and the free Streamlit Cloud tier has limited memory, so very large files (hundreds of thousands of rows) are best run locally. DuckDB is listed under future improvements.
 - **Security notes:** Reset codes expire after 10 minutes, are stored hashed and allow 5 attempts. The login cookie is HMAC-signed and expires after 24 hours. Known limits: logout and password reset do not revoke a cookie that was already copied (no server-side session store), and the resend cooldown is tracked per browser session, not per account or IP.
 
@@ -175,7 +177,7 @@ All tabs (Dashboard, AI Insights, Forecast, Risk, Chat AI, Data & Reports) worke
 pip install pytest
 pytest
 ```
-Three tests cover `clean_data`: duplicate removal, dropping missing and non-positive sales (with the report adding up), and trimming text without corrupting numeric IDs.
+Nine tests: three cover `clean_data` (duplicate removal, dropping missing and non-positive sales with the report adding up, trimming text without corrupting numeric IDs) and six cover forecasting (filling missing days, WAPE, the weekday pattern, the backtest, and too-little-data errors). The login, chat and report code have no automated tests.
 
 ---
 
@@ -184,8 +186,8 @@ Three tests cover `clean_data`: duplicate removal, dropping missing and non-posi
 - [ ] Transition from in-memory Pandas processing to `DuckDB` for handling datasets > 1 million rows.
 - [ ] Migrate user storage from SQLite to PostgreSQL for multi-user production use.
 - [ ] Add server-side sessions so logout and password reset can revoke a login, and rate-limit reset requests per account.
-- [ ] Add in-app forecast validation (hold-out error metrics) and holiday regressors.
-- [ ] Expand the Forecasting module with ARIMA as a baseline comparison.
+- [ ] Add holiday regressors and an ETS or ARIMA model to the forecast comparison.
+- [ ] Add a LightGBM model with lag features as another candidate.
 
 ---
 *Designed for modern data analytics and professional portfolio demonstration.*
